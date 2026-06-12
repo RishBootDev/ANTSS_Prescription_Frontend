@@ -44,6 +44,8 @@ export interface DiagnosisEntry {
 }
 
 export interface PatientData {
+  registrationId?: number | null
+  registrationNumber?: string | null
   name: string | null
   age: number | null
   gender: string | null
@@ -54,6 +56,7 @@ export interface PatientData {
   pulse: number | null
   temperature: number | null
   oxygenSaturation: number | null
+  respiratoryRate?: number | null
   bloodGroup: string | null
   lmp: string | null
   visitDate: string | null

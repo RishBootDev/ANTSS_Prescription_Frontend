@@ -1,10 +1,8 @@
 "use client"
 
-import dynamic from "next/dynamic"
-import React, { useEffect, useMemo, useRef } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import { motion } from "framer-motion"
-
-const Spline = dynamic(() => import("@splinetool/react-spline"), { ssr: false }) as any
+import SplineViewerWithErrorHandling from "./SplineViewerWithErrorHandling"
 
 type AvatarSplineProps = {
   url: string
@@ -49,9 +47,57 @@ export default function AvatarSpline({ url, style, className, ariaLabel, state =
       role={ariaLabel ? "img" : undefined}
       aria-label={ariaLabel}
     >
-      {/* Spline viewer: transparent background */}
+      {/* Spline viewer: transparent background with robust error handling */}
       <div style={{ width: "100%", height: "100%", position: "absolute", inset: 0 }}>
-        <Spline scene={url} style={{ width: "100%", height: "100%", background: "transparent" }} />
+        <SplineViewerWithErrorHandling
+          url={url}
+          style={{ width: "100%", height: "100%", background: "transparent" }}
+          fallback={
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-tr from-rose-50 to-red-100 dark:from-zinc-950 dark:to-zinc-900 rounded-full border border-red-200/50">
+              <motion.div
+                className="w-16 h-16 rounded-full flex items-center justify-center bg-red-600/10 border border-red-500/20"
+                animate={state === "speaking" ? {
+                  scale: [1, 1.15, 1],
+                  borderColor: ["rgba(179,13,13,0.2)", "rgba(179,13,13,0.5)", "rgba(179,13,13,0.2)"]
+                } : state === "listening" ? {
+                  scale: [1, 1.25, 1],
+                  borderColor: ["rgba(179,13,13,0.4)", "rgba(179,13,13,0.8)", "rgba(179,13,13,0.4)"]
+                } : {
+                  scale: 1
+                }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <motion.div
+                  className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-rose-600 shadow-md shadow-red-500/30 flex items-center justify-center"
+                  animate={state === "thinking" ? {
+                    rotate: 360
+                  } : {}}
+                  transition={state === "thinking" ? { duration: 2, repeat: Infinity, ease: "linear" } : {}}
+                >
+                  {/* Micro waveform lines inside the fallback bubble */}
+                  <div className="flex gap-0.75 items-center justify-center h-4">
+                    {[0, 1, 2].map((i) => (
+                      <motion.div
+                        key={i}
+                        className="w-1 bg-white rounded-full"
+                        style={{ height: 4 }}
+                        animate={state === "speaking" || state === "listening" ? {
+                          height: [4, 14, 4]
+                        } : {}}
+                        transition={{
+                          duration: 0.6,
+                          repeat: Infinity,
+                          delay: i * 0.15,
+                          ease: "easeInOut"
+                        }}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
+              </motion.div>
+            </div>
+          }
+        />
       </div>
 
       {/* Visual overlays to simulate lip/mouth and glow effects */}
@@ -90,4 +136,5 @@ export default function AvatarSpline({ url, style, className, ariaLabel, state =
     </div>
   )
 }
+
 

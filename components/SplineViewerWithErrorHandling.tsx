@@ -79,6 +79,22 @@ export default function SplineViewerWithErrorHandling({
     [onError]
   )
 
+  // Check WebGL availability during mount
+  useEffect(() => {
+    try {
+      const canvas = document.createElement("canvas");
+      const isAvailable = !!(
+        window.WebGLRenderingContext &&
+        (canvas.getContext("webgl") || canvas.getContext("experimental-webgl"))
+      );
+      if (!isAvailable) {
+        handleError(new Error("WebGL context creation is not supported or is disabled in the browser."));
+      }
+    } catch (e) {
+      handleError(new Error("WebGL context availability check failed."));
+    }
+  }, [handleError]);
+
   // Global error handler for uncaught errors from the Spline viewer
   useEffect(() => {
     if (viewerLoaded) return
@@ -87,8 +103,13 @@ export default function SplineViewerWithErrorHandling({
     const originalPromiseRejectionHandler = window.onunhandledrejection
 
     window.onerror = function (message, source, lineno, colno, error) {
-      // Check if error is from spline-viewer
-      if (source && source.includes("spline-viewer")) {
+      // Check if error is from spline-viewer or WebGL
+      const msgStr = String(message || "").toLowerCase();
+      if (
+        (source && source.includes("spline-viewer")) ||
+        msgStr.includes("webgl") ||
+        msgStr.includes("context")
+      ) {
         handleError(error || new Error(String(message)))
         return true
       }
@@ -103,7 +124,14 @@ export default function SplineViewerWithErrorHandling({
       const reason = event.reason
       if (reason && typeof reason === "object" && "message" in reason) {
         const msg = String(reason.message || "")
-        if (msg.toLowerCase().includes("spline") || msg.toLowerCase().includes("timeline")) {
+        const lowerMsg = msg.toLowerCase();
+        if (
+          lowerMsg.includes("spline") ||
+          lowerMsg.includes("timeline") ||
+          lowerMsg.includes("webgl") ||
+          lowerMsg.includes("renderer") ||
+          lowerMsg.includes("context")
+        ) {
           handleError(new Error(msg))
         }
       }

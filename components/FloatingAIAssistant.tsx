@@ -310,7 +310,7 @@ export default function FloatingAIAssistant({
                       ease: "easeInOut",
                     }}
                   >
-                    <AvatarSpline url="https://prod.spline.design/zESg9RgYAoqmVo4g/scene.splinecode" />
+                    <AvatarSpline url="https://prod.spline.design/zESg9RgYAoqmVo4g/scene.splinecode" state={effectiveState} audioLevel={audioLevel} />
 
                     {/* Waveform overlay while speaking */}
                     {state === "speaking" && (

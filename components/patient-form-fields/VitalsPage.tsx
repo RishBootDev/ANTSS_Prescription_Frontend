@@ -257,6 +257,31 @@ export default function VitalsPage({
             )}
           </div>
 
+          {/* Respiratory Rate */}
+          <div className="grid gap-1">
+            <Label className="text-[10px]">Resp Rate (bpm)</Label>
+            {wrapWithMic(
+              "respiratoryRate",
+              <Input
+                ref={(el) => {
+                  if (el && registerFieldRef) {
+                    registerFieldRef("respiratoryRate", el)
+                  }
+                }}
+                type="number"
+                placeholder="bpm"
+                value={data.respiratoryRate ?? ""}
+                onChange={(e) =>
+                  updateField(
+                    "respiratoryRate",
+                    e.target.value ? Number(e.target.value) : null
+                  )
+                }
+                className={inputClass("respiratoryRate")}
+              />
+            )}
+          </div>
+
           {/* Blood Group */}
           <div className="grid gap-1">
             <Label className="text-[10px]">Blood Group</Label>
