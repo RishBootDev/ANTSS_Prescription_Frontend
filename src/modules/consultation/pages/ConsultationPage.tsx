@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { PatientForm, PatientData, MedicineEntry, ComplaintEntry, DiagnosisEntry } from "@/components/patient-form";
-import FloatingAIAssistant from "@/components/FloatingAIAssistant";
+import dynamic from "next/dynamic";
+const FloatingAIAssistant = dynamic(() => import("@/components/FloatingAIAssistant"), { ssr: false });
 import { useAuthStore } from "@/src/store/authStore";
 import { prescriptionService } from "@/src/services/prescription.service";
 import { useConsultationVoice } from "@/hooks/useConsultationVoice";
