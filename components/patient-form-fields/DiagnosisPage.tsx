@@ -26,7 +26,6 @@ type Props = {
 
   isHighlighted?: (field: string) => boolean;
 
-  // ✅ SAME TYPE (IMPORTANT)
   wrapWithMic?: (
     fieldId: string,
     element: ReactElement<{ className?: string }>
@@ -42,7 +41,7 @@ export default function DiagnosisPage({
   wrapWithMic = (_, el) => el,
 }: Props) {
   return (
-    <Card>
+    <Card className="border-border/50 shadow-sm">
       <CardHeader className="pb-1.5 px-3 pt-2.5">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
@@ -64,7 +63,7 @@ export default function DiagnosisPage({
       </CardHeader>
 
       <CardContent className="px-3 pb-2.5">
-        {data.diagnoses.length === 0 ? (
+        {(data.diagnoses?.length ?? 0) === 0 ? (
           <div className="rounded-md border bg-card/30 py-2 px-2 text-center text-xs text-muted-foreground">
             No diagnoses yet. Use voice or click "Add".
           </div>
@@ -73,32 +72,31 @@ export default function DiagnosisPage({
             <div className="min-w-[780px]">
 
               {/* Header */}
-              <div className="grid grid-cols-[52px_1.35fr_1fr_0.7fr_0.8fr_36px] items-center gap-1.5 rounded-md bg-muted/30 px-2 py-1 text-[10px] font-medium text-muted-foreground">
+              <div className="grid grid-cols-[52px_1.35fr_1fr_0.7fr_36px] items-center gap-1.5 rounded-md bg-muted/30 px-2 py-1 text-[10px] font-medium text-muted-foreground">
                 <div>#</div>
                 <div>Diagnosis</div>
-                <div>SNOMED Code</div>
+                <div>Code</div>
                 <div>Duration</div>
-                <div>Date</div>
                 <div />
               </div>
 
               {/* Rows */}
               <div className="space-y-1.5 pt-1.5">
-                {data.diagnoses.map((d, index) => (
+                {(data.diagnoses || []).map((d, index) => (
                   <div
                     key={d.id}
-                    className="grid grid-cols-[52px_1.35fr_1fr_0.7fr_0.8fr_36px] items-start gap-1.5 rounded-md border bg-card px-2 py-1.5"
+                    className="grid grid-cols-[52px_1.35fr_1fr_0.7fr_36px] items-start gap-1.5 rounded-md border bg-card px-2 py-1.5"
                   >
                     <div className="pt-1.5 text-center text-[11px] text-muted-foreground">
                       {index + 1}
                     </div>
 
                     {wrapWithMic(
-                      `diagnoses.${d.id}.diagnosis`,
+                      `diagnoses.${d.id}.diagnosisName`,
                       <Input
-                        value={d.diagnosis}
+                        value={d.diagnosisName}
                         onChange={(e) =>
-                          updateDiagnosis(d.id, "diagnosis", e.target.value)
+                          updateDiagnosis(d.id, "diagnosisName", e.target.value)
                         }
                         placeholder="e.g., Acute bronchitis"
                         className="h-8 text-sm"
@@ -106,37 +104,25 @@ export default function DiagnosisPage({
                     )}
 
                     {wrapWithMic(
-                      `diagnoses.${d.id}.snomedCode`,
+                      `diagnoses.${d.id}.diagnosisCode`,
                       <Input
-                        value={d.snomedCode ?? ""}
+                        value={d.diagnosisCode ?? ""}
                         onChange={(e) =>
-                          updateDiagnosis(d.id, "snomedCode", e.target.value)
+                          updateDiagnosis(d.id, "diagnosisCode", e.target.value)
                         }
-                        placeholder="SNOMED"
+                        placeholder="Code"
                         className="h-8 text-sm"
                       />
                     )}
 
                     {wrapWithMic(
-                      `diagnoses.${d.id}.duration`,
+                      `diagnoses.${d.id}.diagnosisDuration`,
                       <Input
-                        value={d.duration ?? ""}
+                        value={d.diagnosisDuration ?? ""}
                         onChange={(e) =>
-                          updateDiagnosis(d.id, "duration", e.target.value)
+                          updateDiagnosis(d.id, "diagnosisDuration", e.target.value)
                         }
                         placeholder="Duration"
-                        className="h-8 text-sm"
-                      />
-                    )}
-
-                    {wrapWithMic(
-                      `diagnoses.${d.id}.date`,
-                      <Input
-                        value={d.date ?? ""}
-                        onChange={(e) =>
-                          updateDiagnosis(d.id, "date", e.target.value)
-                        }
-                        placeholder="Date"
                         className="h-8 text-sm"
                       />
                     )}

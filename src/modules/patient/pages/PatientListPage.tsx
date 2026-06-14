@@ -19,6 +19,7 @@ import {
   Clock,
   CheckCircle,
   Stethoscope,
+  Pill,
 } from "lucide-react";
 import { useAuthStore } from "@/src/store/authStore";
 import { usePatientStore } from "@/src/store/patientStore";
@@ -250,6 +251,9 @@ export default function PatientListPage() {
             <a href="/patients" className="text-sm font-medium text-primary">
               Patients
             </a>
+            <a href="/medicine-master" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Medicine Master
+            </a>
           </nav>
         </div>
       </header>
@@ -281,7 +285,13 @@ export default function PatientListPage() {
               </p>
             </div>
 
-            <PatientRegistrationModal onPatientRegistered={handlePatientRegistered} />
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => router.push("/medicine-master")} className="gap-2">
+                <Pill className="h-4 w-4" />
+                Medicine Master
+              </Button>
+              <PatientRegistrationModal onPatientRegistered={handlePatientRegistered} />
+            </div>
           </div>
 
           <Tabs defaultValue="patients" onValueChange={setActiveTab} className="w-full">

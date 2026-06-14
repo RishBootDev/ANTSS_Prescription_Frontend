@@ -130,20 +130,24 @@ export function useConsultationVoice({ patientData, setPatientData }: UseConsult
                 const m = med as Partial<MedicineEntry>
                 return {
                   id: `med-${Date.now()}-${idx}`,
-                  name: (m.name ?? "") as string,
-                  dose: (m.dose ?? "") as string,
+                  medicineName: (m.medicineName ?? "") as string,
+                  strength: (m.strength ?? "") as string,
+                  dosage: (m.dosage ?? "") as string,
                   frequency: (m.frequency ?? "") as string,
                   duration: (m.duration ?? "") as string,
-                  instructions: (m.instructions ?? "") as string,
+                  instruction: (m.instruction ?? "") as string,
+                  quantity: (m.quantity ?? "") as string,
                 }
               })
 
               const medicineKey = (m: MedicineEntry) =>
-                `${m.name}`.trim().toLowerCase() +
-                `|${m.dose}`.trim().toLowerCase() +
+                `${m.medicineName}`.trim().toLowerCase() +
+                `|${m.strength}`.trim().toLowerCase() +
+                `|${m.dosage}`.trim().toLowerCase() +
                 `|${m.frequency}`.trim().toLowerCase() +
                 `|${m.duration}`.trim().toLowerCase() +
-                `|${m.instructions}`.trim().toLowerCase()
+                `|${m.instruction}`.trim().toLowerCase() +
+                `|${m.quantity}`.trim().toLowerCase()
 
               const existingKeys = new Set(prev.medicines.map(medicineKey))
               const uniqueToAdd = newMedicines.filter((m) => !existingKeys.has(medicineKey(m)))
@@ -160,20 +164,18 @@ export function useConsultationVoice({ patientData, setPatientData }: UseConsult
                 const c = cmp as Partial<ComplaintEntry>
                 return {
                   id: `cmp-${Date.now()}-${idx}`,
-                  complaint: (c.complaint ?? "") as string,
-                  frequency: (c.frequency ?? null) as string | null,
+                  complaintName: (c.complaintName ?? "") as string,
+                  complaintFrequency: (c.complaintFrequency ?? null) as string | null,
                   severity: (c.severity ?? null) as string | null,
-                  duration: (c.duration ?? null) as string | null,
-                  date: (c.date ?? null) as string | null,
+                  complaintDuration: (c.complaintDuration ?? null) as string | null,
                 }
               })
 
               const complaintKey = (c: ComplaintEntry) =>
-                `${c.complaint}`.trim().toLowerCase() +
-                `|${c.frequency ?? ""}`.trim().toLowerCase() +
+                `${c.complaintName}`.trim().toLowerCase() +
+                `|${c.complaintFrequency ?? ""}`.trim().toLowerCase() +
                 `|${c.severity ?? ""}`.trim().toLowerCase() +
-                `|${c.duration ?? ""}`.trim().toLowerCase() +
-                `|${c.date ?? ""}`.trim().toLowerCase()
+                `|${c.complaintDuration ?? ""}`.trim().toLowerCase()
 
               const existingKeys = new Set(prev.complaints.map(complaintKey))
               const uniqueToAdd = newComplaints.filter((c) => !existingKeys.has(complaintKey(c)))
@@ -190,18 +192,16 @@ export function useConsultationVoice({ patientData, setPatientData }: UseConsult
                 const d = dx as Partial<DiagnosisEntry>
                 return {
                   id: `dx-${Date.now()}-${idx}`,
-                  diagnosis: (d.diagnosis ?? "") as string,
-                  snomedCode: (d.snomedCode ?? null) as string | null,
-                  duration: (d.duration ?? null) as string | null,
-                  date: (d.date ?? null) as string | null,
+                  diagnosisName: (d.diagnosisName ?? "") as string,
+                  diagnosisCode: (d.diagnosisCode ?? null) as string | null,
+                  diagnosisDuration: (d.diagnosisDuration ?? null) as string | null,
                 }
               })
 
               const diagnosisKey = (d: DiagnosisEntry) =>
-                `${d.diagnosis}`.trim().toLowerCase() +
-                `|${d.snomedCode ?? ""}`.trim().toLowerCase() +
-                `|${d.duration ?? ""}`.trim().toLowerCase() +
-                `|${d.date ?? ""}`.trim().toLowerCase()
+                `${d.diagnosisName}`.trim().toLowerCase() +
+                `|${d.diagnosisCode ?? ""}`.trim().toLowerCase() +
+                `|${d.diagnosisDuration ?? ""}`.trim().toLowerCase()
 
               const existingKeys = new Set(prev.diagnoses.map(diagnosisKey))
               const uniqueToAdd = newDiagnoses.filter((d) => !existingKeys.has(diagnosisKey(d)))

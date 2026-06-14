@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { PatientForm, PatientData, MedicineEntry, ComplaintEntry, DiagnosisEntry } from "@/components/patient-form";
+import { PatientForm, PatientData, MedicineEntry, ComplaintEntry, DiagnosisEntry, GeneralExaminationEntry, PastMedicalHistoryEntry, InvestigationEntry, TestRequestedEntry, DocumentEntry } from "@/components/patient-form";
 import dynamic from "next/dynamic";
 const FloatingAIAssistant = dynamic(() => import("@/components/FloatingAIAssistant"), { ssr: false });
 import { useAuthStore } from "@/src/store/authStore";
@@ -34,18 +34,20 @@ const emptyPatientData: PatientData = {
   medicalHistory: null,
   quickNotes: null,
   complaints: [],
-  generalExamination: null,
+  generalExaminations: [],
+  pastMedicalHistories: [],
   diagnoses: [],
   advice: null,
-  testsRequested: null,
+  testsRequested: [],
   nextVisit: null,
-  investigations: null,
+  investigations: [],
   payment: null,
   followUp: null,
   contactNumber: null,
   emergencyContact: null,
   insuranceId: null,
   medicines: [],
+  documents: [],
 };
 
 const convertToPatientFormData = (patient: any): PatientData => {
@@ -72,18 +74,20 @@ const convertToPatientFormData = (patient: any): PatientData => {
     medicalHistory: patient.medicalHistory || null,
     quickNotes: patient.quickNotes || null,
     complaints: (patient.complaints || []) as ComplaintEntry[],
-    generalExamination: patient.generalExamination || null,
+    generalExaminations: (patient.generalExaminations || []) as GeneralExaminationEntry[],
+    pastMedicalHistories: (patient.pastMedicalHistories || []) as PastMedicalHistoryEntry[],
     diagnoses: (patient.diagnoses || []) as DiagnosisEntry[],
     advice: patient.advice || null,
-    testsRequested: patient.testsRequested || null,
+    testsRequested: (patient.testsRequested || []) as TestRequestedEntry[],
     nextVisit: patient.nextVisit || null,
-    investigations: patient.investigations || null,
+    investigations: (patient.investigations || []) as InvestigationEntry[],
     payment: patient.payment || null,
     followUp: patient.followUp || null,
     contactNumber: patient.contactNumber || null,
     emergencyContact: patient.emergencyContact || null,
     insuranceId: patient.insuranceId || null,
     medicines: (patient.medicines || []) as MedicineEntry[],
+    documents: (patient.documents || []) as DocumentEntry[],
   };
 };
 
@@ -213,49 +217,72 @@ export default function ConsultationPage() {
       chiefComplaint: null,
       symptoms: null,
       quickNotes: prescription.notes || null,
-      generalExamination: c.generalExamination || null,
+      generalExaminations: (c.generalExaminations || []).map((ge: string, i: number) => ({
+        id: `ge-${i}`,
+        examinationName: ge,
+      })),
+      pastMedicalHistories: c.pastMedicalHistories || [],
       advice: c.advice || null,
-      testsRequested: null,
+      testsRequested: (prescription.testRequested || []).map((tr: any, i: number) => ({
+        id: `tr-${i}`,
+        testName: tr.testName,
+        notes: tr.notes || null,
+      })),
       nextVisit: null,
-      investigations: null,
+      // Map investigation document links into investigations
+      investigations: (prescription.investigations || []).map((inv: any, i: number) => ({
+        id: `inv-${i}`,
+        investigationName: inv.investigationName,
+        notes: inv.notes || null,
+        documentUrl: inv.documentUrl || null,
+        documentFileName: inv.documentFileName || null,
+      })),
+      // Build a set of investigation document URLs so we can filter them out of
+      // the documents list — they already belong to an investigation row
+      documents: (() => {
+        const invDocUrls = new Set(
+          (prescription.investigations || [])
+            .filter((inv: any) => inv.documentUrl)
+            .map((inv: any) => inv.documentUrl)
+        );
+        return (prescription.documents || [])
+          .filter((doc: any) => !invDocUrls.has(doc.url))
+          .map((doc: any, i: number) => ({
+            id: `doc-${i}`,
+            fileName: doc.fileName,
+            url: doc.url,
+          }));
+      })(),
       payment: null,
       followUp: c.followUpDate ? c.followUpDate.split("T")[0] : null,
       contactNumber: originalPatient?.contactNumber || c.mobileNumber || null,
       emergencyContact: originalPatient?.emergencyContact || null,
       insuranceId: originalPatient?.insuranceId || null,
 
-      complaints: c.complaintName
-        ? [
-            {
-              id: "1",
-              complaint: c.complaintName,
-              frequency: c.complaintFrequency,
-              severity: c.severity,
-              duration: c.complaintDuration,
-              date: null,
-            },
-          ]
-        : [],
+      complaints: (c.complaints || []).map((comp: any, i: number) => ({
+        id: `comp-${i}`,
+        complaintName: comp.complaintName || comp.complaint || "",
+        complaintFrequency: comp.complaintFrequency || comp.frequency || null,
+        severity: comp.severity || null,
+        complaintDuration: comp.complaintDuration || comp.duration || null,
+      })),
 
-      diagnoses: c.diagnosisName
-        ? [
-            {
-              id: "1",
-              diagnosis: c.diagnosisName,
-              snomedCode: c.diagnosisCode,
-              duration: c.diagnosisDuration,
-              date: null,
-            },
-          ]
-        : [],
+      diagnoses: (c.diagnoses || []).map((diag: any, i: number) => ({
+        id: `diag-${i}`,
+        diagnosisName: diag.diagnosisName || diag.diagnosis || "",
+        diagnosisCode: diag.diagnosisCode || diag.snomedCode || null,
+        diagnosisDuration: diag.diagnosisDuration || diag.duration || null,
+      })),
 
       medicines: (prescription.medicines || []).map((m: any, index: number) => ({
         id: `med-${index}`,
-        name: m.medicineName,
-        dose: m.strength || m.dosage,
-        frequency: m.frequency,
-        duration: m.duration,
-        instructions: m.instruction,
+        medicineName: m.medicineName || "",
+        strength: m.strength || "",
+        dosage: m.dosage || m.strength || "",
+        frequency: m.frequency || "",
+        duration: m.duration || "",
+        instruction: m.instruction || "",
+        quantity: m.quantity || "",
       })),
     };
 
@@ -306,6 +333,7 @@ export default function ConsultationPage() {
         throw new Error("No active registration found for this patient. Please register the patient first.");
       }
 
+      // Build payload matching new API structure
       const payload = {
         registrationId: Number(registrationId),
         registrationNumber: originalPatient?.registrationNumber || patientData.registrationNumber || undefined,
@@ -319,16 +347,48 @@ export default function ConsultationPage() {
         weight: patientData.weight?.toString() || null,
         height: patientData.height?.toString() || null,
 
-        complaintName: patientData.complaints?.[0]?.complaint || null,
-        complaintFrequency: patientData.complaints?.[0]?.frequency || null,
-        severity: patientData.complaints?.[0]?.severity || null,
-        complaintDuration: patientData.complaints?.[0]?.duration || null,
+        // Complaints - array of objects
+        complaints: patientData.complaints.map((c) => ({
+          complaintName: c.complaintName || "",
+          complaintFrequency: c.complaintFrequency || "",
+          severity: c.severity || "",
+          complaintDuration: c.complaintDuration || "",
+        })),
 
-        generalExamination: patientData.generalExamination || null,
+        // General Examinations - array of strings
+        generalExaminations: patientData.generalExaminations.map((ge) => ge.examinationName).filter(Boolean),
 
-        diagnosisName: patientData.diagnoses?.[0]?.diagnosis || null,
-        diagnosisCode: patientData.diagnoses?.[0]?.snomedCode || null,
-        diagnosisDuration: patientData.diagnoses?.[0]?.duration || null,
+        // Past Medical Histories - array of objects
+        pastMedicalHistories: patientData.pastMedicalHistories.map((pmh) => ({
+          allergies: pmh.allergies || "",
+          currentMedicine: pmh.currentMedicine || "",
+          medicalHistory: pmh.medicalHistory || "",
+        })),
+
+        // Diagnoses - array of objects
+        diagnoses: patientData.diagnoses.map((d) => ({
+          diagnosisName: d.diagnosisName || "",
+          diagnosisCode: d.diagnosisCode || "",
+          diagnosisDuration: d.diagnosisDuration || "",
+        })),
+
+        // Investigations - array of objects
+        investigations: patientData.investigations.map((inv) => ({
+          investigationName: inv.investigationName || "",
+          notes: inv.notes || "",
+        })),
+
+        // Test Requested - array of objects
+        testRequested: patientData.testsRequested.map((tr) => ({
+          testName: tr.testName || "",
+          notes: tr.notes || "",
+        })),
+
+        // Documents - array of objects
+        documents: patientData.documents.map((doc) => ({
+          fileName: doc.fileName || "",
+          url: doc.url || "",
+        })),
 
         advice: patientData.advice || null,
         notes: patientData.quickNotes || null,
@@ -338,14 +398,15 @@ export default function ConsultationPage() {
 
         followUpDate: patientData.followUp ? new Date(patientData.followUp).toISOString() : null,
 
+        // Medicines - array of objects with new field names
         medicines: patientData.medicines.map((m) => ({
-          medicineName: m.name || "",
-          strength: m.dose || "",
-          dosage: m.dose || "",
+          medicineName: m.medicineName || "",
+          strength: m.strength || "",
+          dosage: m.dosage || "",
           frequency: m.frequency || "",
           duration: m.duration || "",
-          instruction: m.instructions || "",
-          quantity: "1",
+          instruction: m.instruction || "",
+          quantity: m.quantity || "1",
         })),
       };
 

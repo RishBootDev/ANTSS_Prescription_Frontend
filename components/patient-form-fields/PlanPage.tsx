@@ -36,7 +36,7 @@ export default function PlanPage({
   wrapWithMic = (_, el) => el,
 }: Props) {
   return (
-    <Card>
+    <Card className="border-border/50 shadow-sm">
       <CardHeader className="pb-1.5 px-3 pt-2.5">
         <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
           <Activity className="h-3.5 w-3.5 text-primary" />
@@ -62,22 +62,6 @@ export default function PlanPage({
           )}
         </div>
 
-        {/* Tests */}
-        <div className="grid gap-1">
-          <Label className="text-[10px]">Tests requested</Label>
-          {wrapWithMic(
-            "testsRequested",
-            <Textarea
-              rows={2}
-              value={data.testsRequested ?? ""}
-              onChange={(e) =>
-                updateField("testsRequested", e.target.value || null)
-              }
-              className={inputClass("testsRequested")}
-            />
-          )}
-        </div>
-
         {/* Row 1 */}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {wrapWithMic(
@@ -92,22 +76,6 @@ export default function PlanPage({
             />
           )}
 
-          {wrapWithMic(
-            "investigations",
-            <Input
-              value={data.investigations ?? ""}
-              onChange={(e) =>
-                updateField("investigations", e.target.value || null)
-              }
-              placeholder="Investigations"
-              className={inputClass("investigations")}
-            />
-          )}
-        </div>
-
-        {/* Follow Up */}
-        <div className="grid gap-1">
-          <Label className="text-[10px]">Follow up (days)</Label>
           {wrapWithMic(
             "followUp",
             <Input

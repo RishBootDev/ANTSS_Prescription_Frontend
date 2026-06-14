@@ -9,11 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Calendar as CalendarIcon, ClipboardList, Plus, Trash2 } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { ClipboardList, Plus, Trash2 } from "lucide-react";
 import { PatientData, ComplaintEntry } from "../patient-form";
 
 type Props = {
@@ -70,44 +66,43 @@ export default function ComplaintsPage({
 
       {/* Content */}
       <CardContent className="px-3 pb-2.5">
-        {data.complaints.length === 0 ? (
+        {(data.complaints?.length ?? 0) === 0 ? (
           <div className="rounded-md border bg-card/30 py-2 px-2 text-center text-xs text-muted-foreground">
             No complaints yet. Use voice or click "Add".
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <div className="min-w-[820px]">
+            <div className="min-w-[700px]">
 
               {/* Header Row */}
-              <div className="grid grid-cols-[40px_1.2fr_0.8fr_0.7fr_0.7fr_0.8fr_32px] items-center gap-1 rounded-md bg-muted/30 px-2 py-1 text-[10px] font-medium text-muted-foreground">
+              <div className="grid grid-cols-[40px_1.2fr_0.8fr_0.7fr_0.7fr_32px] items-center gap-1 rounded-md bg-muted/30 px-2 py-1 text-[10px] font-medium text-muted-foreground">
                 <div>#</div>
                 <div>Complaint</div>
                 <div>Freq</div>
                 <div>Sev</div>
                 <div>Dur</div>
-                <div>Date</div>
                 <div />
               </div>
 
               {/* Rows */}
               <div className="space-y-1.5 pt-1.5">
-                {data.complaints.map((c, index) => (
+                {(data.complaints || []).map((c, index) => (
                   <div
                     key={c.id}
-                    className="grid grid-cols-[40px_1.2fr_0.8fr_0.7fr_0.7fr_0.8fr_32px] items-center gap-1 rounded-md border bg-card px-2 py-1.5"
+                    className="grid grid-cols-[40px_1.2fr_0.8fr_0.7fr_0.7fr_32px] items-center gap-1 rounded-md border bg-card px-2 py-1.5"
                   >
                     {/* Index */}
                     <div className="text-center text-[11px] text-muted-foreground">
                       {index + 1}
                     </div>
 
-                    {/* Complaint */}
+                    {/* Complaint Name */}
                     {wrapWithMic(
-                      `complaints.${c.id}.complaint`,
+                      `complaints.${c.id}.complaintName`,
                       <Input
-                        value={c.complaint}
+                        value={c.complaintName}
                         onChange={(e) =>
-                          updateComplaint(c.id, "complaint", e.target.value)
+                          updateComplaint(c.id, "complaintName", e.target.value)
                         }
                         placeholder="cough"
                         className={`h-8 text-xs ${
@@ -120,11 +115,11 @@ export default function ComplaintsPage({
 
                     {/* Frequency */}
                     {wrapWithMic(
-                      `complaints.${c.id}.frequency`,
+                      `complaints.${c.id}.complaintFrequency`,
                       <Input
-                        value={c.frequency ?? ""}
+                        value={c.complaintFrequency ?? ""}
                         onChange={(e) =>
-                          updateComplaint(c.id, "frequency", e.target.value)
+                          updateComplaint(c.id, "complaintFrequency", e.target.value)
                         }
                         placeholder="3d"
                         className="h-8 text-xs"
@@ -146,49 +141,16 @@ export default function ComplaintsPage({
 
                     {/* Duration */}
                     {wrapWithMic(
-                      `complaints.${c.id}.duration`,
+                      `complaints.${c.id}.complaintDuration`,
                       <Input
-                        value={c.duration ?? ""}
+                        value={c.complaintDuration ?? ""}
                         onChange={(e) =>
-                          updateComplaint(c.id, "duration", e.target.value)
+                          updateComplaint(c.id, "complaintDuration", e.target.value)
                         }
                         placeholder="1w"
                         className="h-8 text-xs"
                       />
                     )}
-
-                    {/* Date */}
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        {wrapWithMic(
-                          `complaints.${c.id}.date`,
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "h-8 justify-start text-left font-normal px-2 text-xs",
-                              !c.date && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="h-3 w-3 mr-1" />
-                            {c.date ? format(new Date(c.date), "dd/MM/yyyy") : <span>Date</span>}
-                          </Button>
-                        )}
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={c.date ? new Date(c.date) : undefined}
-                          onSelect={(date) => {
-                            if (date) {
-                              updateComplaint(c.id, "date", date.toISOString().split('T')[0]);
-                            } else {
-                              updateComplaint(c.id, "date", "");
-                            }
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
 
                     {/* Delete */}
                     <div className="flex justify-end">

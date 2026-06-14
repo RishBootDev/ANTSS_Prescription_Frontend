@@ -13,7 +13,9 @@ import {
   User,
   Phone,
   MapPin,
-  FileText
+  FileText,
+  FileUp,
+  ClipboardList
 } from "lucide-react";
 
 // Prescription Data Types
@@ -40,6 +42,24 @@ export interface DiagnosticTest {
   name: string;
   priority: "routine" | "urgent";
   labName?: string;
+}
+
+export interface Investigation {
+  id: number | string;
+  investigationName: string;
+  createdAt?: string;
+}
+
+export interface TestRequested {
+  id: number | string;
+  testName: string;
+  createdAt?: string;
+}
+
+export interface Document {
+  id: number | string;
+  fileName: string;
+  url: string;
 }
 
 export interface Prescription {
@@ -83,6 +103,11 @@ export interface Prescription {
     days: number;
     note?: string;
   };
+
+  // New fields
+  investigations: Investigation[];
+  testRequested: TestRequested[];
+  documents: Document[];
 }
 
 // Default Clinic & Doctor Info (can be customized)
@@ -185,21 +210,13 @@ export function convertPatientDataToPrescription(
   const chiefComplaints: string[] = [];
   if (patientData.complaints && patientData.complaints.length > 0) {
     patientData.complaints.forEach((c: any, index: number) => {
-      if (c.complaint) {
-        // Build a structured complaint string with frequency, severity, duration, and date
-        let complaintStr = c.complaint;
+      if (c.complaintName || c.complaint) {
+        // Build a structured complaint string with frequency, severity, duration
+        let complaintStr = c.complaintName || c.complaint;
         const parts = [];
-        if (c.frequency) parts.push(c.frequency);
+        if (c.complaintFrequency || c.frequency) parts.push(c.complaintFrequency || c.frequency);
         if (c.severity) parts.push(c.severity);
-        if (c.duration) parts.push(c.duration);
-        if (c.date) {
-          const formattedDate = new Date(c.date).toLocaleDateString('en-IN', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric'
-          });
-          parts.push(`since ${formattedDate}`);
-        }
+        if (c.complaintDuration || c.duration) parts.push(c.complaintDuration || c.duration);
         if (parts.length > 0) {
           complaintStr += ` (${parts.join(', ')})`;
         }
@@ -219,6 +236,15 @@ export function convertPatientDataToPrescription(
     allergies.push(patientData.allergies);
   }
 
+  // Also check pastMedicalHistories array
+  if (patientData.pastMedicalHistories && patientData.pastMedicalHistories.length > 0) {
+    patientData.pastMedicalHistories.forEach((pmh: any) => {
+      if (pmh.allergies) {
+        allergies.push(pmh.allergies);
+      }
+    });
+  }
+
   const pastHistory: string[] = [];
   if (patientData.medicalHistory) {
     pastHistory.push(patientData.medicalHistory);
@@ -227,28 +253,55 @@ export function convertPatientDataToPrescription(
     pastHistory.push(`Current Medications: ${patientData.currentMedications}`);
   }
 
+  // Also check pastMedicalHistories array
+  if (patientData.pastMedicalHistories && patientData.pastMedicalHistories.length > 0) {
+    patientData.pastMedicalHistories.forEach((pmh: any) => {
+      if (pmh.medicalHistory) {
+        pastHistory.push(pmh.medicalHistory);
+      }
+      if (pmh.currentMedicine) {
+        pastHistory.push(`Current Medications: ${pmh.currentMedicine}`);
+      }
+    });
+  }
+
   // Convert diagnosis
   let diagnosis = "Diagnosis Pending";
   if (patientData.diagnoses && patientData.diagnoses.length > 0) {
     diagnosis = patientData.diagnoses.map((d: any) => 
-      `${d.diagnosis}${d.snomedCode ? ` (${d.snomedCode})` : ''}`
+      `${d.diagnosisName || d.diagnosis}${d.diagnosisCode || d.snomedCode ? ` (${d.diagnosisCode || d.snomedCode})` : ''}`
     ).join(", ");
   }
 
   // Convert medicines
   const medicines: Medicine[] = patientData.medicines?.map((m: any) => ({
     id: m.id || Math.random().toString(36).substr(2, 9),
-    genericName: m.name || "Unknown Medicine",
-    brandName: m.name,
-    dosage: m.dose || "---",
+    genericName: m.medicineName || m.name || "Unknown Medicine",
+    brandName: m.medicineName || m.name,
+    dosage: m.dosage || m.dose || "---",
     frequency: m.frequency || "---",
-    instructions: m.instructions || "As directed",
+    instructions: m.instruction || m.instructions || "As directed",
     duration: m.duration || "---"
   })) || [];
 
-  // Convert diagnostics/tests
+  // Convert diagnostics/tests from testRequested array
   const diagnostics: DiagnosticTest[] = [];
-  if (patientData.testsRequested) {
+  
+  // From testRequested array (new structure)
+  if (patientData.testRequested && patientData.testRequested.length > 0) {
+    patientData.testRequested.forEach((tr: any, i: number) => {
+      if (tr.testName) {
+        diagnostics.push({
+          id: tr.id || `test-${i}`,
+          name: tr.testName,
+          priority: "routine"
+        });
+      }
+    });
+  }
+  
+  // Fallback to old testsRequested string field
+  if (patientData.testsRequested && typeof patientData.testsRequested === 'string') {
     patientData.testsRequested.split(',').forEach((test: string, i: number) => {
       const trimmed = test.trim();
       if (trimmed) {
@@ -260,16 +313,43 @@ export function convertPatientDataToPrescription(
       }
     });
   }
-  if (patientData.investigations) {
-    patientData.investigations.split(',').forEach((test: string, i: number) => {
-      const trimmed = test.trim();
-      if (trimmed && !diagnostics.find(d => d.name === trimmed)) {
-        diagnostics.push({
-          id: `inv-${i}`,
-          name: trimmed,
-          priority: "routine"
+
+  // Convert investigations array
+  const investigations: Investigation[] = [];
+  if (patientData.investigations && patientData.investigations.length > 0) {
+    patientData.investigations.forEach((inv: any, i: number) => {
+      if (inv.investigationName) {
+        investigations.push({
+          id: inv.id || `inv-${i}`,
+          investigationName: inv.investigationName,
+          createdAt: inv.createdAt
         });
       }
+    });
+  }
+  
+  // Fallback to old investigations string field
+  if (patientData.investigations && typeof patientData.investigations === 'string') {
+    patientData.investigations.split(',').forEach((test: string, i: number) => {
+      const trimmed = test.trim();
+      if (trimmed) {
+        investigations.push({
+          id: `inv-${i}`,
+          investigationName: trimmed
+        });
+      }
+    });
+  }
+
+  // Convert documents array
+  const documents: Document[] = [];
+  if (patientData.documents && patientData.documents.length > 0) {
+    patientData.documents.forEach((doc: any, i: number) => {
+      documents.push({
+        id: doc.id || `doc-${i}`,
+        fileName: doc.fileName,
+        url: doc.url
+      });
     });
   }
 
@@ -321,7 +401,16 @@ export function convertPatientDataToPrescription(
     medicines,
     diagnostics,
     advice,
-    followUp
+    followUp,
+    investigations,
+    testRequested: patientData.testRequested && patientData.testRequested.length > 0 
+      ? patientData.testRequested.map((tr: any, i: number) => ({
+          id: tr.id || `test-${i}`,
+          testName: tr.testName,
+          createdAt: tr.createdAt
+        }))
+      : diagnostics.map(d => ({ id: d.id, testName: d.name })), // For backward compatibility
+    documents
   };
 }
 
@@ -524,12 +613,13 @@ export default function PrescriptionView({
                   <thead>
                     <tr>
                       <th className="w-[4%] border border-slate-400 px-1 py-[3px] text-left font-semibold">#</th>
-                      <th className="w-[24%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Medicine</th>
-                      <th className="w-[10%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Dose</th>
-                      <th className="w-[10%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Frequency</th>
-                      <th className="w-[10%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Duration</th>
-                      <th className="w-[30%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Instructions</th>
-                      <th className="w-[12%] border border-slate-400 px-1 py-[3px] text-center font-semibold print:hidden">Tracker</th>
+                      <th className="w-[22%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Medicine</th>
+                      <th className="w-[8%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Strength</th>
+                      <th className="w-[8%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Dose</th>
+                      <th className="w-[8%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Frequency</th>
+                      <th className="w-[8%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Duration</th>
+                      <th className="w-[28%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Instructions</th>
+                      <th className="w-[10%] border border-slate-400 px-1 py-[3px] text-center font-semibold print:hidden">Tracker</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -548,6 +638,9 @@ export default function PrescriptionView({
                         </td>
                         <td className="border border-slate-400 px-1 py-[3px] align-top">
                           {medicine.dosage}
+                        </td>
+                        <td className="border border-slate-400 px-1 py-[3px] align-top">
+                          {medicine.frequency}
                         </td>
                         <td className="border border-slate-400 px-1 py-[3px] align-top">
                           {formatFrequency(medicine.frequency)}
@@ -577,41 +670,130 @@ export default function PrescriptionView({
             </CardContent>
           </Card>
 
-          {/* Diagnostics */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <TestTube className="w-5 h-5 text-teal-600" />
-                Diagnostic Tests
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {prescription.diagnostics.map((test) => (
-                  <div key={test.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${
-                        test.priority === "urgent" ? "bg-red-500" : "bg-teal-500"
-                      }`} />
-                      <div>
-                        <p className="font-medium text-sm">{test.name}</p>
-                        {test.labName && (
-                          <p className="text-xs text-slate-500">{test.labName}</p>
-                        )}
-                      </div>
+          {/* Investigations */}
+          {prescription.investigations && prescription.investigations.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TestTube className="w-5 h-5 text-teal-600" />
+                  Investigations
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {prescription.investigations.map((inv, index) => (
+                    <div key={inv.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+                      <span className="text-teal-500 font-medium">{index + 1}.</span>
+                      <span className="text-sm font-medium">{inv.investigationName}</span>
+                      {inv.createdAt && (
+                        <span className="text-xs text-slate-500 ml-auto">
+                          {new Date(inv.createdAt).toLocaleDateString('en-IN')}
+                        </span>
+                      )}
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      test.priority === "urgent" 
-                        ? "bg-red-100 text-red-700" 
-                        : "bg-teal-100 text-teal-700"
-                    }`}>
-                      {test.priority.toUpperCase()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Test Requested */}
+          {prescription.testRequested && prescription.testRequested.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-teal-600" />
+                  Tests Requested
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {prescription.testRequested.map((test, index) => (
+                    <div key={test.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+                      <span className="text-teal-500 font-medium">{index + 1}.</span>
+                      <span className="text-sm font-medium">{test.testName}</span>
+                      {test.createdAt && (
+                        <span className="text-xs text-slate-500 ml-auto">
+                          {new Date(test.createdAt).toLocaleDateString('en-IN')}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Documents */}
+          {prescription.documents && prescription.documents.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileUp className="w-5 h-5 text-teal-600" />
+                  Documents
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {prescription.documents.map((doc, index) => (
+                    <div key={doc.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+                      <span className="text-teal-500 font-medium">{index + 1}.</span>
+                      <span className="text-sm font-medium">{doc.fileName}</span>
+                      {doc.url && (
+                        <a 
+                          href={doc.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-teal-600 hover:underline ml-auto"
+                        >
+                          View Document
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Diagnostics (Legacy - for backward compatibility) */}
+          {prescription.diagnostics && prescription.diagnostics.length > 0 && 
+           (!prescription.testRequested || prescription.testRequested.length === 0) && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TestTube className="w-5 h-5 text-teal-600" />
+                  Diagnostic Tests
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {prescription.diagnostics.map((test) => (
+                    <div key={test.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full ${
+                          test.priority === "urgent" ? "bg-red-500" : "bg-teal-500"
+                        }`} />
+                        <div>
+                          <p className="font-medium text-sm">{test.name}</p>
+                          {test.labName && (
+                            <p className="text-xs text-slate-500">{test.labName}</p>
+                          )}
+                        </div>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        test.priority === "urgent" 
+                          ? "bg-red-100 text-red-700" 
+                          : "bg-teal-100 text-teal-700"
+                      }`}>
+                        {test.priority.toUpperCase()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Advice */}
           <Card>

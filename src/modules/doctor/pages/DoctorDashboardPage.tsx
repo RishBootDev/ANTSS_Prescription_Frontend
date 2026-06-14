@@ -13,6 +13,7 @@ import {
   UserCheck,
   Stethoscope,
   Plus,
+  Pill,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -147,6 +148,9 @@ export default function DoctorDashboardPage() {
             <Link href="/appointments" className="text-sm font-medium hover:text-primary transition-colors">
               Appointments
             </Link>
+            <Link href="/medicine-master" className="text-sm font-medium hover:text-primary transition-colors">
+              Medicine Master
+            </Link>
           </nav>
         </div>
       </header>
@@ -171,6 +175,12 @@ export default function DoctorDashboardPage() {
               <Button onClick={() => router.push("/patients")} className="gap-2">
                 <Users className="h-4 w-4" />
                 View Patient List
+              </Button>
+              <Button asChild variant="outline" className="gap-2">
+                <Link href="/medicine-master">
+                  <Pill className="h-4 w-4" />
+                  Medicine Master
+                </Link>
               </Button>
             </div>
           </div>
