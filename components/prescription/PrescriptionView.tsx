@@ -1,20 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Thermometer, 
-  Activity, 
-  AlertTriangle, 
-  Stethoscope, 
-  TestTube, 
-  QrCode,
-  Printer,
-  Calendar,
-  User,
-  Phone,
-  MapPin,
-  FileText
-} from "lucide-react";
+import { Printer } from "lucide-react";
 
 // Prescription Data Types
 export interface Medicine {
@@ -31,8 +17,7 @@ export interface Vital {
   label: string;
   value: string;
   unit: string;
-  icon: React.ReactNode;
-  trend?: "up" | "down" | "normal";
+  icon?: React.ReactNode;
 }
 
 export interface DiagnosticTest {
@@ -48,6 +33,7 @@ export interface Prescription {
     name: string;
     address: string;
     phone: string;
+    timings?: string;
     logo?: string;
   };
   doctor: {
@@ -66,11 +52,13 @@ export interface Prescription {
     contactNumber?: string;
     visitDate: string;
     prescriptionId: string;
+    address?: string;
   };
   
   // Clinical Data
   vitals: Vital[];
   chiefComplaints: string[];
+  clinicalFindings?: string[];
   pastHistory: string[];
   allergies: string[];
   diagnosis: string;
@@ -82,20 +70,23 @@ export interface Prescription {
   followUp?: {
     days: number;
     note?: string;
+    date?: string;
   };
 }
 
-// Default Clinic & Doctor Info (can be customized)
+// Default Clinic & Doctor Info matching the reference layout
 const defaultClinicInfo = {
-  name: "City Medical Center",
-  address: "123 Health Street, Medical District, City - 400001",
-  phone: "+91 98765 43210"
+  name: "SMS hospital",
+  address: "B/503, Business Center, MG Road, Pune - 411000.",
+  phone: "5465647658",
+  timings: "Timing: 09:00 AM - 01:00 PM, 06:00 PM - 08:00 PM | Closed: Sunday",
+  logo: "/_DOCTOR.jpeg"
 };
 
 const defaultDoctorInfo = {
-  name: "Dr. Rajesh Kumar",
-  qualification: "MBBS, MD (General Medicine)",
-  registrationNo: "MMC-12345",
+  name: "Dr. Akshara",
+  qualification: "M.S.",
+  registrationNo: "MMC 2018",
   specialization: "General Physician"
 };
 
@@ -103,31 +94,64 @@ const formatFrequency = (frequency: string) => {
   const normalized = frequency.trim().toLowerCase();
 
   const frequencyMap: Record<string, string> = {
-    "1-0-0": "OD",
-    "once daily": "OD",
-    daily: "OD",
-    od: "OD",
-    "1-0-1": "BD",
-    "twice daily": "BD",
-    bd: "BD",
-    "1-1-1": "TDS",
-    "three times daily": "TDS",
-    tds: "TDS",
-    "0-0-1": "HS",
-    bedtime: "HS",
-    hs: "HS"
+    "1-0-0": "1 Morning",
+    "once daily": "1 Daily",
+    "daily": "1 Daily",
+    "od": "1 Daily",
+    "1-0-1": "1 Morning, 1 Night (After Food)",
+    "twice daily": "1 Morning, 1 Night",
+    "bd": "1 Morning, 1 Night",
+    "1-1-1": "1 Morning, 1 Afternoon, 1 Night",
+    "three times daily": "1 Morning, 1 Afternoon, 1 Night",
+    "tds": "1 Morning, 1 Afternoon, 1 Night",
+    "0-0-1": "1 Night (At Bedtime)",
+    "bedtime": "1 At Bedtime",
+    "hs": "1 At Bedtime"
   };
 
   return frequencyMap[normalized] || frequency;
 };
 
-// Helper to convert PatientData to Prescription format
+const calculateTotalQty = (frequency: string, duration: string) => {
+  // Try to parse days out of duration (e.g., "5 days" or "5")
+  const daysMatch = duration.match(/(\d+)\s*day/i) || duration.match(/^(\d+)$/);
+  if (!daysMatch) return null;
+  const days = parseInt(daysMatch[1]);
+  
+  let perDay = 0;
+  const normalizedFreq = frequency.toLowerCase().trim();
+  if (normalizedFreq.includes('-')) {
+    perDay = normalizedFreq.split('-').reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+  } else if (normalizedFreq === 'od' || normalizedFreq === 'once daily' || normalizedFreq === 'daily') {
+    perDay = 1;
+  } else if (normalizedFreq === 'bd' || normalizedFreq === 'twice daily') {
+    perDay = 2;
+  } else if (normalizedFreq === 'tds' || normalizedFreq === 'three times daily') {
+    perDay = 3;
+  } else if (normalizedFreq === 'hs' || normalizedFreq === 'bedtime') {
+    perDay = 1;
+  }
+  
+  if (days && perDay) {
+    return days * perDay;
+  }
+  return null;
+};
+
+// Convert PatientData to Prescription format
 export function convertPatientDataToPrescription(
   patientData: any,
   clinicInfo?: typeof defaultClinicInfo,
   doctorInfo?: typeof defaultDoctorInfo
 ): Prescription {
-  const visitDate = new Date();
+  const visitDateObj = new Date();
+  
+  // Format visit date as DD-MMM-YYYY
+  const formattedVisitDate = visitDateObj.toLocaleDateString('en-IN', { 
+    day: '2-digit', 
+    month: 'short', 
+    year: 'numeric' 
+  }).replace(/ /g, '-');
   
   // Convert vitals
   const vitals: Vital[] = [];
@@ -135,80 +159,72 @@ export function convertPatientDataToPrescription(
     vitals.push({
       label: "Blood Pressure",
       value: `${patientData.bloodPressureSystolic || '---'}/${patientData.bloodPressureDiastolic || '---'}`,
-      unit: "mmHg",
-      icon: <Activity className="w-4 h-4" />
+      unit: "mmHg"
     });
   }
   if (patientData.pulse) {
     vitals.push({
       label: "Pulse",
       value: patientData.pulse.toString(),
-      unit: "bpm",
-      icon: <Thermometer className="w-4 h-4" />
+      unit: "bpm"
     });
   }
   if (patientData.temperature) {
     vitals.push({
       label: "Temperature",
       value: patientData.temperature.toString(),
-      unit: "°F",
-      icon: <Thermometer className="w-4 h-4" />
+      unit: "°F"
     });
   }
   if (patientData.oxygenSaturation) {
     vitals.push({
       label: "SpO2",
       value: patientData.oxygenSaturation.toString(),
-      unit: "%",
-      icon: <Activity className="w-4 h-4" />
+      unit: "%"
     });
   }
   if (patientData.weight) {
     vitals.push({
       label: "Weight",
       value: patientData.weight.toString(),
-      unit: "kg",
-      icon: <Activity className="w-4 h-4" />
+      unit: "kg"
     });
   }
   if (patientData.height) {
     vitals.push({
       label: "Height",
       value: patientData.height.toString(),
-      unit: "cm",
-      icon: <Activity className="w-4 h-4" />
+      unit: "cm"
     });
   }
 
-  // Convert chief complaints - only from the consolidated complaints table
-  // First row maps to "Chief Complaint", subsequent rows as "Associated Complaints"
+  // Convert complaints
   const chiefComplaints: string[] = [];
   if (patientData.complaints && patientData.complaints.length > 0) {
-    patientData.complaints.forEach((c: any, index: number) => {
+    patientData.complaints.forEach((c: any) => {
       if (c.complaint) {
-        // Build a structured complaint string with frequency, severity, duration, and date
-        let complaintStr = c.complaint;
-        const parts = [];
-        if (c.frequency) parts.push(c.frequency);
-        if (c.severity) parts.push(c.severity);
-        if (c.duration) parts.push(c.duration);
-        if (c.date) {
-          const formattedDate = new Date(c.date).toLocaleDateString('en-IN', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric'
-          });
-          parts.push(`since ${formattedDate}`);
+        let str = c.complaint.toUpperCase();
+        const details = [];
+        if (c.severity) details.push(c.severity.toUpperCase());
+        if (c.frequency) details.push(c.frequency.toUpperCase());
+        if (c.duration) details.push(c.duration.toUpperCase());
+        if (details.length > 0) {
+          str += ` (${details.join(', ')})`;
         }
-        if (parts.length > 0) {
-          complaintStr += ` (${parts.join(', ')})`;
-        }
-        // First complaint is the Chief Complaint, rest are Associated
-        if (index === 0) {
-          chiefComplaints.unshift(complaintStr);
-        } else {
-          chiefComplaints.push(complaintStr);
-        }
+        chiefComplaints.push(str);
+      }
+    });
+  } else if (patientData.chiefComplaint) {
+    chiefComplaints.push(patientData.chiefComplaint.toUpperCase());
+  }
+
+  // Convert general examination to Clinical Findings
+  const clinicalFindings: string[] = [];
+  if (patientData.generalExamination) {
+    patientData.generalExamination.split('\n').forEach((line: string) => {
+      const trimmed = line.trim();
+      if (trimmed) {
+        clinicalFindings.push(trimmed.toUpperCase());
       }
     });
   }
@@ -228,10 +244,10 @@ export function convertPatientDataToPrescription(
   }
 
   // Convert diagnosis
-  let diagnosis = "Diagnosis Pending";
+  let diagnosis = "";
   if (patientData.diagnoses && patientData.diagnoses.length > 0) {
     diagnosis = patientData.diagnoses.map((d: any) => 
-      `${d.diagnosis}${d.snomedCode ? ` (${d.snomedCode})` : ''}`
+      `${d.diagnosis.toUpperCase()}${d.snomedCode ? ` (${d.snomedCode})` : ''}`
     ).join(", ");
   }
 
@@ -242,7 +258,7 @@ export function convertPatientDataToPrescription(
     brandName: m.name,
     dosage: m.dose || "---",
     frequency: m.frequency || "---",
-    instructions: m.instructions || "As directed",
+    instructions: m.instructions || "",
     duration: m.duration || "---"
   })) || [];
 
@@ -260,40 +276,32 @@ export function convertPatientDataToPrescription(
       }
     });
   }
-  if (patientData.investigations) {
-    patientData.investigations.split(',').forEach((test: string, i: number) => {
-      const trimmed = test.trim();
-      if (trimmed && !diagnostics.find(d => d.name === trimmed)) {
-        diagnostics.push({
-          id: `inv-${i}`,
-          name: trimmed,
-          priority: "routine"
-        });
-      }
-    });
-  }
 
   // Convert advice
   const advice: string[] = [];
   if (patientData.advice) {
     patientData.advice.split('\n').forEach((line: string) => {
       const trimmed = line.trim();
-      if (trimmed) advice.push(trimmed);
+      if (trimmed) advice.push(trimmed.toUpperCase());
     });
   }
 
   // Convert follow-up
   let followUp = undefined;
-  if (patientData.nextVisit) {
-    followUp = {
-      days: 5, // Default
-      note: patientData.nextVisit
-    };
-  }
   if (patientData.followUp) {
+    const days = parseInt(patientData.followUp) || 5;
+    const dateObj = new Date();
+    dateObj.setDate(dateObj.getDate() + days);
+    const formattedFollowUpDate = dateObj.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    }).replace(/ /g, '-');
+    
     followUp = {
-      days: parseInt(patientData.followUp) || 5,
-      note: `Follow-up after ${patientData.followUp} days`
+      days,
+      note: `Review after ${days} days`,
+      date: formattedFollowUpDate
     };
   }
 
@@ -304,17 +312,15 @@ export function convertPatientDataToPrescription(
       name: patientData.name || "Unknown Patient",
       age: patientData.age || 0,
       gender: patientData.gender || "Other",
-      abhaId: undefined, // Can be added if available
+      abhaId: undefined,
       contactNumber: patientData.contactNumber || undefined,
-      visitDate: visitDate.toLocaleDateString('en-IN', { 
-        day: 'numeric', 
-        month: 'short', 
-        year: 'numeric' 
-      }),
-      prescriptionId: `RX-${visitDate.getTime().toString().slice(-8)}`
+      visitDate: formattedVisitDate,
+      prescriptionId: patientData.registrationNumber || patientData.registrationId?.toString() || `RX-${visitDateObj.getTime().toString().slice(-6)}`,
+      address: patientData.address || "PUNE"
     },
     vitals,
     chiefComplaints,
+    clinicalFindings,
     pastHistory,
     allergies,
     diagnosis,
@@ -334,612 +340,305 @@ export default function PrescriptionView({
     window.print();
   };
 
+  // Find specific vital values
+  const weightVital = prescription.vitals.find(v => v.label.toLowerCase().includes('weight'));
+  const heightVital = prescription.vitals.find(v => v.label.toLowerCase().includes('height'));
+  const bpVital = prescription.vitals.find(v => v.label.toLowerCase().includes('pressure') || v.label.toLowerCase() === 'bp');
+
+  const weightVal = weightVital ? weightVital.value : '---';
+  const heightVal = heightVital ? heightVital.value : '---';
+  const bpVal = bpVital ? bpVital.value : '---';
+
+  let bmiVal = '---';
+  if (weightVital && heightVital) {
+    const w = parseFloat(weightVital.value);
+    const h = parseFloat(heightVital.value);
+    if (w && h) {
+      bmiVal = (w / Math.pow(h / 100, 2)).toFixed(2);
+    }
+  }
+
+  // Other vitals
+  const extraVitals: string[] = [];
+  prescription.vitals.forEach(v => {
+    const labelLower = v.label.toLowerCase();
+    if (!labelLower.includes('weight') && !labelLower.includes('height') && !labelLower.includes('pressure') && labelLower !== 'bp') {
+      extraVitals.push(`${v.label}: ${v.value} ${v.unit || ''}`);
+    }
+  });
+
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8 print-container">
-      {/* Print Button - Hidden during print */}
-      <div className="no-print mb-6 flex justify-end">
+    <div className="min-h-screen bg-slate-100 py-8 px-4 flex flex-col items-center justify-start print:bg-white print:py-0 print:px-0">
+      
+      {/* Control bar - Hidden during print */}
+      <div className="w-[210mm] max-w-full mb-6 flex justify-between items-center no-print">
+        <span className="text-sm font-semibold text-slate-600">Prescription Preview (A4 Size)</span>
         <button
           onClick={handlePrint}
-          className="flex items-center gap-2 bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition-colors shadow-lg"
+          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-md text-sm font-medium"
         >
-          <Printer className="w-5 h-5" />
+          <Printer className="w-4 h-4" />
           Print Prescription
         </button>
       </div>
 
-      {/* Main Prescription Container - A4 Optimized */}
-      <div className="print-wrapper">
+      {/* Main A4 Document Container */}
+      <div className="w-[210mm] min-h-[297mm] bg-white text-black font-serif shadow-2xl p-[15mm] flex flex-col justify-between relative print:shadow-none print:w-full print:h-full print:p-0 print:m-0 print:min-h-0 print:overflow-visible">
         
-        {/* Header Section */}
-        <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-6 print:bg-slate-900 print:text-white">
-          <div className="flex justify-between items-start">
-            {/* Clinic Branding */}
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold mb-2">{prescription.clinic.name}</h1>
-              <div className="flex flex-col gap-1 text-sm opacity-90">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  <span>{prescription.clinic.address}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4" />
-                  <span>{prescription.clinic.phone}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Doctor Details */}
-            <div className="text-right ml-8">
-              <h2 className="text-xl font-semibold mb-1">{prescription.doctor.name}</h2>
-              <p className="text-sm opacity-90 mb-1">{prescription.doctor.qualification}</p>
-              <p className="text-sm opacity-90 mb-1">{prescription.doctor.specialization}</p>
-              <p className="text-sm font-medium text-teal-300">Reg. No: {prescription.doctor.registrationNo}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Prescription Info Bar */}
-        <div className="bg-slate-100 px-6 py-3 border-b border-slate-200 print:bg-slate-100">
-          <div className="flex justify-between items-center text-sm">
-            <div className="flex gap-6">
-              <span className="font-medium">Rx ID: {prescription.patient.prescriptionId}</span>
-              <span className="flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
-                {prescription.patient.visitDate}
-              </span>
-            </div>
-            {prescription.patient.abhaId && (
-              <div className="flex items-center gap-2 bg-white px-3 py-1 rounded border border-slate-300">
-                <QrCode className="w-4 h-4 text-teal-600" />
-                <span className="font-mono text-xs">ABHA: {prescription.patient.abhaId}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <CardContent className="p-6 space-y-6">
+        {/* Top & Body Container */}
+        <div>
           
-          {/* Patient Info Bar */}
-          <div className="flex items-center justify-between bg-slate-50 p-4 rounded-lg border border-slate-200 print:bg-slate-50">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center">
-                <User className="w-6 h-6 text-teal-600" />
+          {/* Header Block */}
+          <div className="flex justify-between items-start gap-4">
+            {/* Left Column: Doctor Details */}
+            <div className="w-[38%] text-left">
+              <h2 className="text-lg font-bold text-slate-900 leading-tight">{prescription.doctor.name}</h2>
+              <p className="text-xs text-slate-800 font-medium mt-0.5">{prescription.doctor.qualification}</p>
+              <p className="text-[11px] text-slate-600 mt-1">Reg. No: {prescription.doctor.registrationNo}</p>
+              {prescription.doctor.specialization && (
+                <p className="text-[11px] text-slate-500 mt-0.5">{prescription.doctor.specialization}</p>
+              )}
+            </div>
+            
+            {/* Center Column: Logo */}
+            <div className="w-[24%] flex justify-center items-center">
+              <img 
+                src={prescription.clinic.logo || "/_DOCTOR.jpeg"} 
+                alt="Clinic Logo" 
+                className="h-14 w-auto object-contain max-h-14 max-w-full" 
+              />
+            </div>
+
+            {/* Right Column: Clinic Details */}
+            <div className="w-[38%] text-right">
+              <h1 className="text-xl font-bold text-blue-600 leading-tight uppercase">{prescription.clinic.name}</h1>
+              <p className="text-[11px] text-slate-800 mt-1 leading-normal">{prescription.clinic.address}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">
+                Ph: {prescription.clinic.phone} <br />
+                {prescription.clinic.timings || "Timing: 09:00 AM - 01:00 PM, 06:00 PM - 08:00 PM | Closed: Sunday"}
+              </p>
+            </div>
+          </div>
+
+          {/* Thin grey separator */}
+          <div className="border-b border-slate-300 my-3" />
+
+          {/* Patient Information Block */}
+          <div className="space-y-1 text-slate-900">
+            {/* Row 1 */}
+            <div className="flex justify-between items-center text-[12px] font-bold">
+              <div>
+                ID: {prescription.patient.prescriptionId} - {prescription.patient.name.toUpperCase()} ({prescription.patient.gender === 'Male' ? 'M' : prescription.patient.gender === 'Female' ? 'F' : 'O'}) / {prescription.patient.age} Y
               </div>
               <div>
-                <h3 className="font-semibold text-lg">{prescription.patient.name}</h3>
-                <p className="text-sm text-slate-600">
-                  {prescription.patient.age} years • {prescription.patient.gender}
-                  {prescription.patient.contactNumber && ` • ${prescription.patient.contactNumber}`}
-                </p>
+                {prescription.patient.contactNumber && `Mob. No.: ${prescription.patient.contactNumber}`}
               </div>
+              <div>
+                Date: {prescription.patient.visitDate}
+              </div>
+            </div>
+            {/* Row 2 */}
+            <div className="text-[11px] leading-tight text-slate-800">
+              Address: {prescription.patient.address?.toUpperCase() || 'PUNE'}
+            </div>
+            {/* Row 3: Vitals */}
+            <div className="text-[11px] leading-tight text-slate-700">
+              Weight (Kg): {weightVal}, Height (Cm): {heightVal} {bmiVal !== '---' && `(B.M.I. = ${bmiVal})`}, BP: {bpVal} mmHg
+              {extraVitals.length > 0 && `, ${extraVitals.join(', ')}`}
             </div>
           </div>
 
-          {/* Vitals Card */}
-          <Card className="border-l-4 border-l-teal-500">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Activity className="w-5 h-5 text-teal-600" />
-                Vital Signs
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {prescription.vitals.map((vital, index) => (
-                  <div key={index} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-                    <div className="text-teal-600">{vital.icon}</div>
-                    <div>
-                      <div className="text-sm font-semibold">
-                        {vital.value} <span className="text-xs font-normal text-slate-500">{vital.unit}</span>
-                      </div>
-                      <div className="text-xs text-slate-500">{vital.label}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Thin grey separator */}
+          <div className="border-b border-slate-300 my-3" />
 
-          {/* Clinical Context - Two Columns */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Chief Complaints */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Stethoscope className="w-5 h-5 text-teal-600" />
-                  Chief Complaints
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {prescription.chiefComplaints.map((complaint, index) => (
-                    <li key={index} className="flex items-start gap-2 text-sm">
-                      <span className="text-teal-500 mt-1">•</span>
-                      <span>{complaint}</span>
+          {/* Two Column Layout: Chief Complaints & Clinical Findings */}
+          <div className="grid grid-cols-2 border-t border-b border-slate-300 py-3.5 gap-x-6">
+            
+            {/* Left Column: Chief Complaints */}
+            <div className="border-r border-slate-300 pr-4">
+              <h3 className="text-[12px] font-bold text-slate-900 mb-2 uppercase tracking-wide">Chief Complaints</h3>
+              {prescription.chiefComplaints && prescription.chiefComplaints.length > 0 ? (
+                <ul className="space-y-1.5">
+                  {prescription.chiefComplaints.map((item, index) => (
+                    <li key={index} className="text-[11px] text-slate-800 flex items-start gap-1">
+                      <span className="font-bold">*</span>
+                      <span>{item}</span>
                     </li>
                   ))}
                 </ul>
-              </CardContent>
-            </Card>
+              ) : (
+                <p className="text-[11px] text-slate-400 italic">None reported</p>
+              )}
+            </div>
 
-            {/* Past History & Allergies */}
-            <div className="space-y-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-teal-600" />
-                    Past History
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {prescription.pastHistory.map((history, index) => (
-                      <li key={index} className="flex items-start gap-2 text-sm">
-                        <span className="text-teal-500 mt-1">•</span>
-                        <span>{history}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-
-              {/* Allergies Alert Box */}
-              {prescription.allergies.length > 0 && (
-                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-semibold text-red-800 text-sm mb-1">Allergies</h4>
-                      <ul className="space-y-1">
-                        {prescription.allergies.map((allergy, index) => (
-                          <li key={index} className="text-sm text-red-700">
-                            • {allergy}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
+            {/* Right Column: Clinical Findings */}
+            <div className="pl-2">
+              <h3 className="text-[12px] font-bold text-slate-900 mb-2 uppercase tracking-wide">Clinical Findings</h3>
+              {prescription.clinicalFindings && prescription.clinicalFindings.length > 0 ? (
+                <ul className="space-y-1.5">
+                  {prescription.clinicalFindings.map((item, index) => (
+                    <li key={index} className="text-[11px] text-slate-800 flex items-start gap-1">
+                      <span className="font-bold">*</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[11px] text-slate-400 italic">None noted</p>
               )}
             </div>
           </div>
 
-          {/* Diagnosis */}
-          <div className="bg-teal-50 border border-teal-200 p-4 rounded-lg">
-            <h4 className="text-sm font-semibold text-teal-800 mb-1">Diagnosis</h4>
-            <p className="text-lg font-bold text-teal-900">{prescription.diagnosis}</p>
+          {/* Diagnosis Section */}
+          <div className="mt-4">
+            <h3 className="text-[12px] font-bold text-slate-900 mb-1.5 uppercase tracking-wide">Diagnosis:</h3>
+            {prescription.diagnosis ? (
+              <ul className="space-y-1">
+                {prescription.diagnosis.split(',').map((diag, index) => (
+                  <li key={index} className="text-[11px] text-slate-800 flex items-start gap-1 font-semibold">
+                    <span className="font-bold">*</span>
+                    <span>{diag.trim()}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-[11px] text-slate-400 italic">None entered</p>
+            )}
           </div>
 
-          {/* Medicines - Rx Section */}
-          <Card className="rx-section rounded-none border border-slate-400 shadow-none">
-            <CardHeader className="px-2 py-1">
-              <CardTitle className="text-sm font-semibold">
-                Prescription (Rx)
-              </CardTitle>
-            </CardHeader>
+          {/* Thin grey separator */}
+          <div className="border-b border-slate-300 my-4" />
 
-            <CardContent className="rx-table-content p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-slate-400 text-xs leading-tight">
-                  <thead>
-                    <tr>
-                      <th className="w-[4%] border border-slate-400 px-1 py-[3px] text-left font-semibold">#</th>
-                      <th className="w-[24%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Medicine</th>
-                      <th className="w-[10%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Dose</th>
-                      <th className="w-[10%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Frequency</th>
-                      <th className="w-[10%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Duration</th>
-                      <th className="w-[30%] border border-slate-400 px-1 py-[3px] text-left font-semibold">Instructions</th>
-                      <th className="w-[12%] border border-slate-400 px-1 py-[3px] text-center font-semibold print:hidden">Tracker</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {prescription.medicines.map((medicine, index) => (
-                      <tr key={medicine.id}>
-                        <td className="border border-slate-400 px-1 py-[3px] align-top">
-                          {index + 1}
-                        </td>
-                        <td className="border border-slate-400 px-1 py-[3px] align-top">
-                          <div className="font-semibold">{medicine.genericName}</div>
-                          {medicine.brandName && medicine.brandName !== medicine.genericName && (
-                            <div className="text-[10px] leading-tight text-slate-500">
-                              {medicine.brandName}
+          {/* Rx Section */}
+          <div className="mt-3">
+            <div className="text-xl font-bold text-slate-900 font-serif italic mb-2.5">Rx</div>
+            
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-t border-b border-slate-400 text-[11px] font-bold text-slate-900">
+                  <th className="text-left py-2 w-[55%]">Medicine Name</th>
+                  <th className="text-left py-2 w-[30%]">Dosage</th>
+                  <th className="text-left py-2 w-[15%]">Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                {prescription.medicines && prescription.medicines.length > 0 ? (
+                  prescription.medicines.map((med, index) => {
+                    const totalQty = calculateTotalQty(med.frequency, med.duration);
+                    return (
+                      <tr key={med.id || index} className="border-b border-slate-200 text-[11px] text-slate-800 align-top">
+                        {/* Name Column */}
+                        <td className="py-2.5 pr-4">
+                          <div className="font-bold text-slate-900">{index + 1}) {med.brandName?.toUpperCase() || med.genericName?.toUpperCase()}</div>
+                          {/* Generic Composition in small blue capital text */}
+                          {med.genericName && med.genericName !== med.brandName && (
+                            <div className="text-[9px] text-blue-600 font-bold uppercase mt-0.5 tracking-wide">
+                              {med.genericName}
                             </div>
                           )}
                         </td>
-                        <td className="border border-slate-400 px-1 py-[3px] align-top">
-                          {medicine.dosage}
+                        
+                        {/* Dosage Column */}
+                        <td className="py-2.5 pr-4">
+                          <div className="font-semibold text-slate-900">{formatFrequency(med.frequency)}</div>
+                          {med.instructions && (
+                            <div className="text-[10px] text-slate-500 mt-0.5 italic">
+                              ({med.instructions})
+                            </div>
+                          )}
                         </td>
-                        <td className="border border-slate-400 px-1 py-[3px] align-top">
-                          {formatFrequency(medicine.frequency)}
-                        </td>
-                        <td className="border border-slate-400 px-1 py-[3px] align-top">
-                          {medicine.duration}
-                        </td>
-                        <td className="border border-slate-400 px-1 py-[3px] align-top text-[10px] leading-tight text-slate-600">
-                          {medicine.instructions}
-                        </td>
-                        <td className="border border-slate-400 px-1 py-[3px] print:hidden">
-                          <div className="flex justify-center gap-[2px]">
-                            {Array.from({ length: 7 }, (_, i) => (
-                              <span
-                                key={i}
-                                className="block h-3 w-3 border border-slate-400"
-                                aria-hidden="true"
-                              />
-                            ))}
-                          </div>
+                        
+                        {/* Duration Column */}
+                        <td className="py-2.5">
+                          <div className="font-semibold text-slate-900">{med.duration}</div>
+                          {totalQty !== null && (
+                            <div className="text-[10px] text-slate-500 mt-0.5">
+                              (Tot: {totalQty} Tab)
+                            </div>
+                          )}
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={3} className="py-4 text-center text-[11px] text-slate-400 italic">
+                      No medicines prescribed
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-          {/* Diagnostics */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <TestTube className="w-5 h-5 text-teal-600" />
-                Diagnostic Tests
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {prescription.diagnostics.map((test) => (
-                  <div key={test.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${
-                        test.priority === "urgent" ? "bg-red-500" : "bg-teal-500"
-                      }`} />
-                      <div>
-                        <p className="font-medium text-sm">{test.name}</p>
-                        {test.labName && (
-                          <p className="text-xs text-slate-500">{test.labName}</p>
-                        )}
-                      </div>
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      test.priority === "urgent" 
-                        ? "bg-red-100 text-red-700" 
-                        : "bg-teal-100 text-teal-700"
-                    }`}>
-                      {test.priority.toUpperCase()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Advice */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <FileText className="w-5 h-5 text-teal-600" />
-                Medical Advice
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="grid md:grid-cols-2 gap-2">
+          {/* Advice Section */}
+          {prescription.advice && prescription.advice.length > 0 && (
+            <div className="mt-5">
+              <h3 className="text-[12px] font-bold text-slate-900 mb-1.5 uppercase tracking-wide">Advice:</h3>
+              <ul className="space-y-1">
                 {prescription.advice.map((item, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm p-2 bg-slate-50 rounded">
-                    <span className="text-teal-500 mt-1">✓</span>
+                  <li key={index} className="text-[11px] text-slate-800 flex items-start gap-1">
+                    <span className="font-bold">*</span>
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
-            </CardContent>
-          </Card>
-
-          {/* Follow Up */}
-          {prescription.followUp && (
-            <div className="bg-slate-100 p-4 rounded-lg border-l-4 border-teal-500">
-              <div className="flex items-center gap-2 mb-1">
-                <Calendar className="w-5 h-5 text-teal-600" />
-                <h4 className="font-semibold text-slate-900">Follow Up</h4>
-              </div>
-              <p className="text-slate-700">
-                After <span className="font-bold text-teal-700">{prescription.followUp.days} days</span>
-                {prescription.followUp.note && (
-                  <span className="text-slate-600"> — {prescription.followUp.note}</span>
-                )}
-              </p>
             </div>
           )}
-        </CardContent>
+        </div>
 
-        {/* Footer */}
-        <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 print:bg-slate-50">
-          <div className="flex justify-between items-center text-xs text-slate-500">
-            <div>
-              <p>Generated on {new Date().toLocaleString('en-IN')}</p>
-              <p className="mt-1">This is a computer-generated prescription. No signature required.</p>
+        {/* Bottom Area (Follow Up, Signature, Footer) */}
+        <div className="mt-12">
+          {/* Follow Up & Doctor Signature Block */}
+          <div className="flex justify-between items-end mb-6">
+            <div className="text-[12px] font-bold text-slate-900">
+              {prescription.followUp && (
+                <span>Follow Up: {prescription.followUp.date}</span>
+              )}
             </div>
-            <div className="text-right">
-              <p className="font-medium text-slate-700">{prescription.clinic.name}</p>
-              <p>Page 1 of 1</p>
+            
+            {/* Signature Placement */}
+            <div className="text-center pr-4">
+              <div className="h-14 w-36 border-b border-dashed border-slate-300 mb-1"></div>
+              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Doctor Signature / Stamp</div>
             </div>
+          </div>
+
+          {/* Footer Divider & Disclaimer */}
+          <div className="border-t border-slate-300 pt-2 text-center">
+            <p className="text-[10px] text-slate-500 italic">
+              Substitute with equivalent Generics as required.
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Print-specific styles */}
+      {/* Global CSS style overrides for accurate A4 print layouts */}
       <style jsx global>{`
         @media print {
           @page {
             size: A4;
-            margin: 16mm;
+            margin: 15mm;
           }
           
-          /* Force background colors and images to print */
+          /* Enforce backgrounds/colors */
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             color-adjust: exact !important;
           }
           
-          /* Reset body and html */
           html, body {
             background: white !important;
             margin: 0 !important;
             padding: 0 !important;
             width: 100% !important;
             height: auto !important;
-            overflow: visible !important;
+            font-family: 'Times New Roman', Times, serif !important;
           }
           
-          /* Hide non-print elements */
-          .no-print,
-          .print\\:hidden {
+          .no-print {
             display: none !important;
-          }
-          
-          /* Print container - center and size for A4 */
-          .print-container {
-            min-height: auto !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            background: white !important;
-          }
-          
-          /* Print wrapper - fixed width for A4 */
-          .print-wrapper {
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-            border-radius: 0 !important;
-            background: white !important;
-          }
-          
-          /* Remove all shadows */
-          .print-wrapper,
-          .print-wrapper * {
-            box-shadow: none !important;
-          }
-          
-          /* Ensure background colors print */
-          .bg-gradient-to-r {
-            background: #0f172a !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          
-          /* Card styles for print */
-          .print-wrapper [data-slot="card"] {
-            border: 1px solid #e2e8f0 !important;
-            box-shadow: none !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-          
-          /* Remove hover effects */
-          .print-wrapper [data-slot="card"]:hover {
-            border-color: #e2e8f0 !important;
-          }
-          
-          /* Ensure proper spacing */
-          .print-wrapper [data-slot="card-content"] {
-            padding: 12px 16px !important;
-          }
-
-          .print-wrapper .rx-section {
-            border: 1px solid #94a3b8 !important;
-          }
-
-          .print-wrapper .rx-section [data-slot="card-header"] {
-            padding: 4px 8px !important;
-          }
-
-          .print-wrapper .rx-table-content {
-            padding: 0 !important;
-          }
-
-          .print-wrapper .rx-section table,
-          .print-wrapper .rx-section th,
-          .print-wrapper .rx-section td {
-            border: 1px solid #94a3b8 !important;
-          }
-
-          .print-wrapper .rx-section th,
-          .print-wrapper .rx-section td {
-            padding: 3px 4px !important;
-            line-height: 1.15 !important;
-          }
-          
-          .print-wrapper [data-slot="card-header"] {
-            padding: 8px 16px !important;
-          }
-          
-          /* Typography adjustments */
-          .print-wrapper h1 {
-            font-size: 18px !important;
-            font-weight: 700 !important;
-          }
-          
-          .print-wrapper h2 {
-            font-size: 14px !important;
-            font-weight: 600 !important;
-          }
-          
-          .print-wrapper h3 {
-            font-size: 14px !important;
-            font-weight: 600 !important;
-          }
-          
-          .print-wrapper h4 {
-            font-size: 12px !important;
-            font-weight: 600 !important;
-          }
-          
-          .print-wrapper p,
-          .print-wrapper span,
-          .print-wrapper li {
-            font-size: 11px !important;
-            line-height: 1.5 !important;
-          }
-          
-          /* Grid adjustments for print */
-          .print-wrapper .grid {
-            gap: 12px !important;
-          }
-          
-          .print-wrapper .md\\:grid-cols-2 {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-          }
-          
-          /* Space between elements */
-          .print-wrapper .space-y-6 {
-            margin-top: 0 !important;
-          }
-          
-          .print-wrapper .space-y-6 > * + * {
-            margin-top: 16px !important;
-          }
-          
-          .print-wrapper .space-y-4 > * + * {
-            margin-top: 12px !important;
-          }
-          
-          .print-wrapper .space-y-3 > * + * {
-            margin-top: 8px !important;
-          }
-          
-          .print-wrapper .space-y-2 > * + * {
-            margin-top: 6px !important;
-          }
-          
-          /* Border adjustments */
-          .print-wrapper .border-l-4 {
-            border-left-width: 3px !important;
-          }
-          
-          /* Medicine cards */
-          .print-wrapper .border.border-slate-200 {
-            border-width: 1px !important;
-            border-color: #e2e8f0 !important;
-            padding: 8px 12px !important;
-            margin-bottom: 8px !important;
-          }
-          
-          /* Vitals grid */
-          .print-wrapper .grid-cols-2,
-          .print-wrapper .md\\:grid-cols-4 {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-          }
-          
-          /* Advice grid */
-          .print-wrapper .md\\:grid-cols-2 {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-          }
-          
-          /* Allergies alert */
-          .print-wrapper .bg-red-50 {
-            background-color: #fef2f2 !important;
-            border-left-color: #ef4444 !important;
-          }
-          
-          /* Diagnosis box */
-          .print-wrapper .bg-teal-50 {
-            background-color: #f0fdfa !important;
-            border-color: #99f6e4 !important;
-          }
-          
-          /* Info bar */
-          .print-wrapper .bg-slate-100 {
-            background-color: #f1f5f9 !important;
-          }
-          
-          .print-wrapper .bg-slate-50 {
-            background-color: #f8fafc !important;
-          }
-          
-          /* Footer */
-          .print-wrapper .border-t {
-            border-top-width: 1px !important;
-            border-top-color: #e2e8f0 !important;
-          }
-          
-          /* Prevent page breaks in critical sections */
-          .print-wrapper .border-l-4 {
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-          
-          /* Icons - ensure they print */
-          .print-wrapper svg {
-            display: inline !important;
-          }
-          
-          /* Remove transitions and animations */
-          .print-wrapper * {
-            transition: none !important;
-            animation: none !important;
-          }
-          
-          /* Ensure text colors */
-          .text-slate-900,
-          .text-slate-800,
-          .text-slate-700 {
-            color: #1e293b !important;
-          }
-          
-          .text-teal-600 {
-            color: #0d9488 !important;
-          }
-          
-          .text-teal-700 {
-            color: #0f766e !important;
-          }
-          
-          .text-teal-800 {
-            color: #115e59 !important;
-          }
-          
-          .text-teal-900 {
-            color: #134e4a !important;
-          }
-          
-          .text-red-600,
-          .text-red-700,
-          .text-red-800 {
-            color: #dc2626 !important;
-          }
-          
-          .text-slate-600 {
-            color: #475569 !important;
-          }
-          
-          .text-slate-500 {
-            color: #64748b !important;
-          }
-          
-          /* Links */
-          a {
-            text-decoration: none !important;
-            color: inherit !important;
           }
         }
       `}</style>
