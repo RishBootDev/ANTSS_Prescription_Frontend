@@ -1,2 +1,4 @@
-export { default as PrescriptionView, convertPatientDataToPrescription } from "./PrescriptionView";
-export type { Prescription, Medicine, Vital, DiagnosticTest } from "./PrescriptionView";
+export { default as PrescriptionView } from "./PrescriptionView";
+export { convertPatientDataToPrescription } from "./convert";
+export type { Medicine, Vital, DiagnosticTest } from "./types-compat";
+export type { MappedPrescription as Prescription } from "@/types/prescription";

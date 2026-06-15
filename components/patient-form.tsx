@@ -437,8 +437,8 @@ export function PatientForm({
     } catch (e) {
       console.error('Failed to save prescription data:', e);
     }
-    // Open prescription demo page in new tab for printing
-    window.open("/prescription-demo", "_blank");
+    // Open prescription page in new tab for printing
+    window.open("/prescription", "_blank");
   }
 
   /* ================= UI ================= */
