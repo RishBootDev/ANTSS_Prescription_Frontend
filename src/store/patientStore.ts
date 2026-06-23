@@ -27,44 +27,58 @@ export const usePatientStore = create<PatientState>((set) => ({
   fetchPatients: async () => {
     set({ loading: true, error: null });
     try {
-      // 1. Get doctorId from AuthStore first, fallback to fetch if necessary
-      let doctorId = useAuthStore.getState().user?.doctorId;
+      // 1. Fetch all accessible registrations for patient list
+      const registrationsResponse = await patientService.getAllRegistrations();
+      const registrations = (registrationsResponse as any)?.data || registrationsResponse;
       
-      if (!doctorId) {
-        const profileResponse = await doctorService.getDoctorProfile();
-        doctorId = profileResponse?.data?.id || profileResponse?.id;
+      const mappedPatients = Array.isArray(registrations) ? registrations.map((r: any) => {
+        const p = r.patient || {};
+        return {
+          patientId: p.patientId,
+          patientName: p.patientName,
+          mobileNumber: p.mobileNumber,
+          gender: p.gender,
+          age: p.age,
+          address: p.address,
+          state: p.state,
+          city: p.city,
+          pincode: p.pincode,
+          dateOfBirth: p.dateOfBirth || null,
+          createdAt: r.createdAt || p.createdAt,
+          registrationId: r.registrationId,
+          registrationNumber: r.registrationNumber,
+          bloodGroup: p.bloodGroup || null,
+        };
+      }) : [];
+
+      // 2. Try fetching consultations for follow-ups
+      let consultations: any[] = [];
+      try {
+        const { user } = useAuthStore.getState();
+        let doctorId = user?.doctorId;
+        
+        if (!doctorId && user?.userType === "DOCTOR") {
+          const profileResponse = await doctorService.getDoctorProfile();
+          doctorId = profileResponse?.data?.id || profileResponse?.id;
+        }
+
+        if (doctorId) {
+          const consultationsResponse = await consultationService.getConsultationsByDoctor(doctorId);
+          consultations = (consultationsResponse as any)?.data || consultationsResponse;
+        } else {
+          // If not a doctor, fetch all consultations within the user's clinical scope
+          const consultationsResponse = await consultationService.getAllConsultations();
+          consultations = (consultationsResponse as any)?.data || consultationsResponse;
+        }
+
+        if (!Array.isArray(consultations)) {
+          consultations = [];
+        }
+      } catch (err) {
+        console.warn("Failed to fetch consultations for follow-ups", err);
       }
 
-      if (!doctorId) {
-        throw new Error("Could not extract doctor ID from profile");
-      }
-
-      // 2. Fetch consultations for this doctor
-      const consultationsResponse = await consultationService.getConsultationsByDoctor(doctorId);
-      const consultations = (consultationsResponse as any)?.data || consultationsResponse;
-
-      // 3. Extract unique patients from consultations
-      const uniquePatientsMap = new Map<number, BackendPatient>();
-      
-      if (Array.isArray(consultations)) {
-        consultations.forEach((cons: any) => {
-          if (cons.patientId && !uniquePatientsMap.has(cons.patientId)) {
-            uniquePatientsMap.set(cons.patientId, {
-              patientId: cons.patientId,
-              patientName: cons.patientName,
-              mobileNumber: cons.mobileNumber,
-              gender: cons.gender,
-              age: cons.age,
-              address: cons.patientAddress,
-              registrationId: cons.registrationId,
-              registrationNumber: cons.registrationNumber,
-            });
-          }
-        });
-      }
-
-      const data = Array.from(uniquePatientsMap.values());
-      set({ patients: data, consultations, loading: false });
+      set({ patients: mappedPatients, consultations, loading: false });
     } catch (err: any) {
       set({ error: err.message || "Failed to fetch patients", loading: false });
     }

@@ -13,16 +13,21 @@ export interface ApiMedicineResponse {
   quantity?: string;
 }
 
-export interface ApiInvestigationResponse {
-  id: number;
-  investigationName: string;
-  createdAt: string;
-}
+export type ApiDiagnosticStatus = "REQUESTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
-export interface ApiTestRequestedResponse {
+export interface ApiDiagnosticResponse {
   id: number;
   testName: string;
-  createdAt: string;
+  notes?: string;
+  resultSummary?: string;
+  status: ApiDiagnosticStatus;
+  registrationId?: number;
+  prescriptionId?: number;
+  reportDocumentId?: number;
+  requestedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  cancelledAt?: string;
 }
 
 export interface ApiDocumentResponse {
@@ -94,8 +99,7 @@ export interface ApiDetailedPrescriptionResponse {
   createdAt: string; // ISO LocalDateTime
   consultation: ApiConsultationResponse;
   medicines: ApiMedicineResponse[];
-  investigations: ApiInvestigationResponse[];
-  testRequested: ApiTestRequestedResponse[];
+  diagnostics: ApiDiagnosticResponse[];
   documents: ApiDocumentResponse[];
 }
 

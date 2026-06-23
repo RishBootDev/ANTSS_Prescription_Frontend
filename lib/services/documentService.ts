@@ -31,6 +31,17 @@ export async function getPatientDocuments(patientId: number): Promise<UploadedDo
 }
 
 /**
+ * Get one document for a patient.
+ * GET /api/patients/{patientId}/documents/{documentId}
+ */
+export async function getPatientDocument(
+  patientId: number,
+  documentId: number
+): Promise<UploadedDocument> {
+  return await apiClient.get(`/api/patients/${patientId}/documents/${documentId}`);
+}
+
+/**
  * Delete a document.
  * DELETE /api/patients/{patientId}/documents/{documentId}
  */

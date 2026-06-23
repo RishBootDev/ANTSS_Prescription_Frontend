@@ -160,6 +160,15 @@ export const apiClient = {
     }
   },
 
+  async patch<T>(path: string, body?: any, options?: any): Promise<T> {
+    try {
+      const response = await axiosInstance.patch<T>(path, body, options);
+      return response.data;
+    } catch (err: any) {
+      throw err;
+    }
+  },
+
   async delete<T>(path: string, options?: any): Promise<T> {
     try {
       const response = await axiosInstance.delete<T>(path, options);

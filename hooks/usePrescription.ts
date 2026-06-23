@@ -252,15 +252,21 @@ export function usePrescription(prescriptionId: number | null) {
         quantity: med.quantity
       }));
 
-      // Map tests recommended (merge testRequested and investigations)
+      // Map tests recommended (new backend diagnostics, with legacy fallback)
       const tests: MappedTest[] = [];
-      if (rawPrescription.testRequested) {
-        rawPrescription.testRequested.forEach(tr => {
+      if (rawPrescription.diagnostics) {
+        rawPrescription.diagnostics.forEach(diagnostic => {
+          tests.push({ id: `diag-${diagnostic.id}`, name: diagnostic.testName, notes: diagnostic.notes });
+        });
+      }
+      const legacyPrescription = rawPrescription as any;
+      if (legacyPrescription.testRequested) {
+        legacyPrescription.testRequested.forEach((tr: any) => {
           tests.push({ id: `tr-${tr.id}`, name: tr.testName });
         });
       }
-      if (rawPrescription.investigations) {
-        rawPrescription.investigations.forEach(inv => {
+      if (legacyPrescription.investigations) {
+        legacyPrescription.investigations.forEach((inv: any) => {
           tests.push({ id: `inv-${inv.id}`, name: inv.investigationName });
         });
       }

@@ -33,4 +33,23 @@ export const patientService = {
   getRegistrationById: (registrationId: number): Promise<BackendPatientRegistration> => {
     return apiClient.get<BackendPatientRegistration>(`/api/patient-registrations/${registrationId}`);
   },
+
+  getRegistrationsByClinic: (clinicId: number): Promise<BackendPatientRegistration[]> => {
+    return apiClient.get<BackendPatientRegistration[]>(`/api/patient-registrations/clinic/${clinicId}`);
+  },
+
+  getRegistrationsByHospital: (hospitalId: number): Promise<BackendPatientRegistration[]> => {
+    return apiClient.get<BackendPatientRegistration[]>(`/api/patient-registrations/hospital/${hospitalId}`);
+  },
+
+  updateRegistration: (
+    registrationId: number,
+    registrationData: Partial<BackendPatientRegistration>
+  ): Promise<BackendPatientRegistration> => {
+    return apiClient.put<BackendPatientRegistration>(`/api/patient-registrations/${registrationId}`, registrationData);
+  },
+
+  deleteRegistration: (registrationId: number): Promise<string> => {
+    return apiClient.delete<string>(`/api/patient-registrations/${registrationId}`);
+  },
 };

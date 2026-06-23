@@ -9,7 +9,7 @@ import {
 
 export const prescriptionApi = {
   /**
-   * Fetches detailed prescription by ID (includes consultation, medicines, investigations, documents)
+   * Fetches detailed prescription by ID (includes consultation, medicines, diagnostics, documents)
    */
   getDetailedPrescription: async (id: number): Promise<ApiDetailedPrescriptionResponse> => {
     return apiClient.get<ApiDetailedPrescriptionResponse>(`/api/prescription/detail/${id}`);

@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Heart, Scale, Calendar } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Heart, Scale, Calendar, Info } from "lucide-react";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,20 @@ type Props = {
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
+// Parse a "YYYY-MM-DD" string as local midnight (avoids UTC-off-by-one)
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// Get BMI category
+function getBmiCategory(bmi: number): { label: string; color: string } {
+  if (bmi < 18.5) return { label: "Underweight", color: "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30" };
+  if (bmi < 25)   return { label: "Normal",      color: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30" };
+  if (bmi < 30)   return { label: "Overweight",  color: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30" };
+  return               { label: "Obese",         color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30" };
+}
+
 export default function VitalsPage({
   data,
   updateField,
@@ -46,10 +61,12 @@ export default function VitalsPage({
   const bmi = useMemo(() => {
     if (data.height && data.weight && data.height > 0) {
       const heightInMeters = data.height / 100;
-      return (data.weight / (heightInMeters * heightInMeters)).toFixed(1);
+      return parseFloat((data.weight / (heightInMeters * heightInMeters)).toFixed(1));
     }
     return null;
   }, [data.height, data.weight]);
+
+  const bmiCategory = bmi !== null ? getBmiCategory(bmi) : null;
 
   return (
     <Card
@@ -65,21 +82,19 @@ export default function VitalsPage({
       </CardHeader>
 
       <CardContent className="px-3 pb-2.5">
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-          
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+
           {/* Blood Pressure */}
           <div className="grid gap-1">
-            <Label className="text-[10px]">Blood pressure (mmHg)</Label>
-            <div className="flex items-center gap-2">
+            <Label className="text-[10px] font-medium">Blood Pressure (mmHg)</Label>
+            <div className="flex items-center gap-1.5">
               {wrapWithMic(
                 "bloodPressureSystolic",
                 <Input
-                  ref={(el) => {
-                    if (el && registerFieldRef) {
-                      registerFieldRef("bloodPressureSystolic", el)
-                    }
-                  }}
+                  ref={(el) => { if (el && registerFieldRef) registerFieldRef("bloodPressureSystolic", el); }}
                   type="number"
+                  min={60}
+                  max={200}
                   placeholder="Systolic"
                   value={data.bloodPressureSystolic ?? ""}
                   onChange={(e) =>
@@ -88,21 +103,17 @@ export default function VitalsPage({
                       e.target.value ? Number(e.target.value) : null
                     )
                   }
-                  className={inputClass("bloodPressureSystolic")}
+                  className={`${inputClass("bloodPressureSystolic")}`}
                 />
               )}
-
-              <span className="text-muted-foreground text-sm">/</span>
-
+              <span className="text-muted-foreground text-sm font-medium">/</span>
               {wrapWithMic(
                 "bloodPressureDiastolic",
                 <Input
-                  ref={(el) => {
-                    if (el && registerFieldRef) {
-                      registerFieldRef("bloodPressureDiastolic", el)
-                    }
-                  }}
+                  ref={(el) => { if (el && registerFieldRef) registerFieldRef("bloodPressureDiastolic", el); }}
                   type="number"
+                  min={40}
+                  max={130}
                   placeholder="Diastolic"
                   value={data.bloodPressureDiastolic ?? ""}
                   onChange={(e) =>
@@ -111,56 +122,54 @@ export default function VitalsPage({
                       e.target.value ? Number(e.target.value) : null
                     )
                   }
-                  className={inputClass("bloodPressureDiastolic")}
+                  className={`${inputClass("bloodPressureDiastolic")}`}
                 />
               )}
             </div>
+            <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Info className="h-2.5 w-2.5 flex-shrink-0" />
+              Normal: 90–120 / 60–80 mmHg
+            </p>
           </div>
 
           {/* Pulse */}
           <div className="grid gap-1">
-            <Label className="text-[10px]">Pulse (bpm)</Label>
+            <Label className="text-[10px] font-medium">Pulse (bpm)</Label>
             {wrapWithMic(
               "pulse",
               <Input
-                ref={(el) => {
-                  if (el && registerFieldRef) {
-                    registerFieldRef("pulse", el)
-                  }
-                }}
+                ref={(el) => { if (el && registerFieldRef) registerFieldRef("pulse", el); }}
                 type="number"
-                placeholder="bpm"
+                min={30}
+                max={250}
+                placeholder="e.g., 72"
                 value={data.pulse ?? ""}
                 onChange={(e) =>
-                  updateField(
-                    "pulse",
-                    e.target.value ? Number(e.target.value) : null
-                  )
+                  updateField("pulse", e.target.value ? Number(e.target.value) : null)
                 }
                 className={inputClass("pulse")}
               />
             )}
+            <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Info className="h-2.5 w-2.5 flex-shrink-0" />
+              Normal: 60–100 bpm
+            </p>
           </div>
 
           {/* Height */}
           <div className="grid gap-1">
-            <Label className="text-[10px]">Height (cm)</Label>
+            <Label className="text-[10px] font-medium">Height (cm)</Label>
             {wrapWithMic(
               "height",
               <Input
-                ref={(el) => {
-                  if (el && registerFieldRef) {
-                    registerFieldRef("height", el)
-                  }
-                }}
+                ref={(el) => { if (el && registerFieldRef) registerFieldRef("height", el); }}
                 type="number"
-                placeholder="cm"
+                min={30}
+                max={250}
+                placeholder="e.g., 170"
                 value={data.height ?? ""}
                 onChange={(e) =>
-                  updateField(
-                    "height",
-                    e.target.value ? Number(e.target.value) : null
-                  )
+                  updateField("height", e.target.value ? Number(e.target.value) : null)
                 }
                 className={inputClass("height")}
               />
@@ -169,135 +178,130 @@ export default function VitalsPage({
 
           {/* Weight */}
           <div className="grid gap-1">
-            <Label className="text-[10px]">Weight (kg)</Label>
+            <Label className="text-[10px] font-medium">Weight (kg)</Label>
             {wrapWithMic(
               "weight",
               <Input
-                ref={(el) => {
-                  if (el && registerFieldRef) {
-                    registerFieldRef("weight", el)
-                  }
-                }}
+                ref={(el) => { if (el && registerFieldRef) registerFieldRef("weight", el); }}
                 type="number"
-                placeholder="kg"
+                min={1}
+                max={500}
+                placeholder="e.g., 70"
                 value={data.weight ?? ""}
                 onChange={(e) =>
-                  updateField(
-                    "weight",
-                    e.target.value ? Number(e.target.value) : null
-                  )
+                  updateField("weight", e.target.value ? Number(e.target.value) : null)
                 }
                 className={inputClass("weight")}
               />
             )}
           </div>
 
-          {/* BMI - Read Only */}
+          {/* BMI - Read Only with category badge */}
           <div className="grid gap-1">
-            <Label className="text-[10px]">BMI</Label>
+            <Label className="text-[10px] font-medium">BMI</Label>
             <div className="flex items-center gap-2">
-              <Scale className="h-3.5 w-3.5 text-muted-foreground" />
+              <Scale className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
               <Input
                 type="text"
                 readOnly
-                value={bmi ?? "---"}
+                value={bmi !== null ? String(bmi) : "---"}
                 className="bg-muted/50 text-xs"
               />
             </div>
+            {bmiCategory && (
+              <span
+                className={`inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[9px] font-semibold ${bmiCategory.color}`}
+              >
+                {bmiCategory.label}
+              </span>
+            )}
           </div>
 
           {/* Temperature */}
           <div className="grid gap-1">
-            <Label className="text-[10px]">Temperature (°F)</Label>
+            <Label className="text-[10px] font-medium">Temperature (°F)</Label>
             {wrapWithMic(
               "temperature",
               <Input
-                ref={(el) => {
-                  if (el && registerFieldRef) {
-                    registerFieldRef("temperature", el)
-                  }
-                }}
+                ref={(el) => { if (el && registerFieldRef) registerFieldRef("temperature", el); }}
                 type="number"
                 step="0.1"
-                placeholder="°F"
+                min={90}
+                max={110}
+                placeholder="e.g., 98.6"
                 value={data.temperature ?? ""}
                 onChange={(e) =>
-                  updateField(
-                    "temperature",
-                    e.target.value ? Number(e.target.value) : null
-                  )
+                  updateField("temperature", e.target.value ? Number(e.target.value) : null)
                 }
                 className={inputClass("temperature")}
               />
             )}
+            <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Info className="h-2.5 w-2.5 flex-shrink-0" />
+              Normal: 97–99°F
+            </p>
           </div>
 
           {/* SpO2 */}
           <div className="grid gap-1">
-            <Label className="text-[10px]">SpO2 (%)</Label>
+            <Label className="text-[10px] font-medium">SpO₂ (%)</Label>
             {wrapWithMic(
               "oxygenSaturation",
               <Input
-                ref={(el) => {
-                  if (el && registerFieldRef) {
-                    registerFieldRef("oxygenSaturation", el)
-                  }
-                }}
+                ref={(el) => { if (el && registerFieldRef) registerFieldRef("oxygenSaturation", el); }}
                 type="number"
-                placeholder="%"
+                min={50}
+                max={100}
+                placeholder="e.g., 98"
                 value={data.oxygenSaturation ?? ""}
                 onChange={(e) =>
-                  updateField(
-                    "oxygenSaturation",
-                    e.target.value ? Number(e.target.value) : null
-                  )
+                  updateField("oxygenSaturation", e.target.value ? Number(e.target.value) : null)
                 }
                 className={inputClass("oxygenSaturation")}
               />
             )}
+            <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Info className="h-2.5 w-2.5 flex-shrink-0" />
+              Normal: ≥ 95%
+            </p>
           </div>
 
           {/* Respiratory Rate */}
           <div className="grid gap-1">
-            <Label className="text-[10px]">Resp Rate (bpm)</Label>
+            <Label className="text-[10px] font-medium">Resp. Rate (breaths/min)</Label>
             {wrapWithMic(
               "respiratoryRate",
               <Input
-                ref={(el) => {
-                  if (el && registerFieldRef) {
-                    registerFieldRef("respiratoryRate", el)
-                  }
-                }}
+                ref={(el) => { if (el && registerFieldRef) registerFieldRef("respiratoryRate", el); }}
                 type="number"
-                placeholder="bpm"
+                min={5}
+                max={60}
+                placeholder="e.g., 16"
                 value={data.respiratoryRate ?? ""}
                 onChange={(e) =>
-                  updateField(
-                    "respiratoryRate",
-                    e.target.value ? Number(e.target.value) : null
-                  )
+                  updateField("respiratoryRate", e.target.value ? Number(e.target.value) : null)
                 }
                 className={inputClass("respiratoryRate")}
               />
             )}
+            <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Info className="h-2.5 w-2.5 flex-shrink-0" />
+              Normal: 12–20 breaths/min
+            </p>
           </div>
 
           {/* Blood Group */}
           <div className="grid gap-1">
-            <Label className="text-[10px]">Blood Group</Label>
+            <Label className="text-[10px] font-medium">Blood Group</Label>
             <Select
               value={data.bloodGroup ?? ""}
               onValueChange={(value) => updateField("bloodGroup", value || null)}
             >
-              <SelectTrigger 
-                ref={(el) => {
-                  if (el && registerFieldRef) {
-                    registerFieldRef("bloodGroup", el)
-                  }
-                }}
+              <SelectTrigger
+                ref={(el) => { if (el && registerFieldRef) registerFieldRef("bloodGroup", el); }}
                 className={inputClass("bloodGroup")}
               >
-                <SelectValue placeholder="Select" />
+                <SelectValue placeholder="Select blood group" />
               </SelectTrigger>
               <SelectContent>
                 {bloodGroups.map((bg) => (
@@ -309,34 +313,37 @@ export default function VitalsPage({
             </Select>
           </div>
 
-          {/* LMP Date */}
+          {/* LMP Date — uses local date parsing to avoid UTC off-by-one */}
           <div className="grid gap-1">
-            <Label className="text-[10px]">LMP</Label>
+            <Label className="text-[10px] font-medium">LMP (Last Menstrual Period)</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
-                  ref={(el) => {
-                    if (el && registerFieldRef) {
-                      registerFieldRef("lmp", el)
-                    }
-                  }}
+                  ref={(el) => { if (el && registerFieldRef) registerFieldRef("lmp", el); }}
                   variant="outline"
                   className={cn(
                     "h-8 justify-start text-left font-normal px-2 text-xs",
                     !data.lmp && "text-muted-foreground"
                   )}
                 >
-                  <Calendar className="h-3 w-3 mr-1" />
-                  {data.lmp ? format(new Date(data.lmp), "dd/MM/yyyy") : <span>Select date</span>}
+                  <Calendar className="h-3 w-3 mr-1.5" />
+                  {data.lmp
+                    ? format(parseLocalDate(data.lmp), "dd/MM/yyyy")
+                    : <span>Select date</span>
+                  }
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <CalendarComponent
                   mode="single"
-                  selected={data.lmp ? new Date(data.lmp) : undefined}
+                  selected={data.lmp ? parseLocalDate(data.lmp) : undefined}
                   onSelect={(date) => {
                     if (date) {
-                      updateField("lmp", date.toISOString().split('T')[0]);
+                      // Store as local YYYY-MM-DD (no UTC shift)
+                      const y = date.getFullYear();
+                      const m = String(date.getMonth() + 1).padStart(2, "0");
+                      const d = String(date.getDate()).padStart(2, "0");
+                      updateField("lmp", `${y}-${m}-${d}`);
                     } else {
                       updateField("lmp", null);
                     }
@@ -345,6 +352,7 @@ export default function VitalsPage({
                 />
               </PopoverContent>
             </Popover>
+            <p className="text-[10px] text-muted-foreground">For female patients</p>
           </div>
 
         </div>

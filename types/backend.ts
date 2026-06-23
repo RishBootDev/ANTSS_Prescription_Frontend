@@ -11,12 +11,16 @@ export interface BackendPatient {
   pincode?: string;
   registrationId?: number;
   registrationNumber?: string;
+  bloodGroup?: string | null;
 }
 
 export interface BackendPatientRegistration {
   registrationId?: number;
   registrationNumber?: string;
-  patient: BackendPatient;
+  patient?: BackendPatient;
+  patientId?: number;
+  clinicId?: number;
+  hospitalId?: number;
   clinic?: any; // Add clinic interface if needed
   hospital?: any; // Add hospital interface if needed
   status?: string;
@@ -52,12 +56,7 @@ export interface DiagnosisEntry {
   diagnosisDuration?: string;
 }
 
-export interface InvestigationEntry {
-  investigationName: string;
-  notes?: string;
-}
-
-export interface TestRequestedEntry {
+export interface DiagnosticEntry {
   testName: string;
   notes?: string;
 }
@@ -92,11 +91,7 @@ export interface SavePrescriptionRequest {
   // Diagnosis - Now an array of objects
   diagnoses?: DiagnosisEntry[];
 
-  // Investigations - New field (array of objects)
-  investigations?: InvestigationEntry[];
-
-  // Test Requested - New field (array of objects)
-  testRequested?: TestRequestedEntry[];
+  diagnostics?: DiagnosticEntry[];
 
   // Documents - New field (array of objects)
   documents?: DocumentEntry[];
@@ -114,16 +109,21 @@ export interface SavePrescriptionRequest {
 }
 
 // Response types for detailed prescription
-export interface InvestigationResponse {
-  id: number;
-  investigationName: string;
-  createdAt: string;
-}
+export type DiagnosticStatus = "REQUESTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
-export interface TestRequestedResponse {
+export interface DiagnosticResponse {
   id: number;
   testName: string;
-  createdAt: string;
+  notes?: string;
+  resultSummary?: string;
+  status: DiagnosticStatus;
+  registrationId?: number;
+  prescriptionId?: number;
+  reportDocumentId?: number;
+  requestedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  cancelledAt?: string;
 }
 
 export interface DocumentResponse {
@@ -135,8 +135,7 @@ export interface DocumentResponse {
 export interface DetailedPrescriptionResponse extends SavePrescriptionRequest {
   id: number;
   // Override array fields with response types that include id and createdAt
-  investigations?: InvestigationResponse[];
-  testRequested?: TestRequestedResponse[];
+  diagnostics?: DiagnosticResponse[];
   documents?: DocumentResponse[];
   createdAt?: string;
   updatedAt?: string;
