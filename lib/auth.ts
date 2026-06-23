@@ -10,6 +10,8 @@ export type AuthUser = {
   role: string;
   registrationDate: string;
   createdAt: string;
+  clinicId?: number | null;
+  hospitalId?: number | null;
 };
 
 export type AuthState = {

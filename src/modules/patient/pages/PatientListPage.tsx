@@ -128,6 +128,7 @@ export default function PatientListPage() {
         oxygenSaturation: null,
         bloodGroup: p.bloodGroup || null,
         lmp: null,
+        dateOfBirth: p.dateOfBirth || null,
         allergies: p.allergies || null,
         currentMedications: p.currentMedications || null,
         chiefComplaint: null,

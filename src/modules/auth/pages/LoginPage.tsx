@@ -17,8 +17,13 @@ function LoginContent() {
   const token = searchParams.get("token") || "";
 
   const [view, setView] = useState<AuthView>("login");
+  const [mounted, setMounted] = useState(false);
   const [isClientReady, setIsClientReady] = useState(false);
   const [webglAvailable, setWebglAvailable] = useState(true);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (token) {
@@ -63,6 +68,15 @@ function LoginContent() {
 
   const showLogin = () => setView("login");
   const showForgotPassword = () => setView("forgot-password");
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8f8f8] text-neutral-500 font-medium gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-[#b30d0d]" />
+        <span>Loading Prescription Portal...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f8f8f8] overflow-hidden">

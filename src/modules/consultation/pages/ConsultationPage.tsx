@@ -24,6 +24,7 @@ const emptyPatientData: PatientData = {
   pulse: null,
   temperature: null,
   oxygenSaturation: null,
+  respiratoryRate: null,
   bloodGroup: null,
   lmp: null,
   visitDate: null,
@@ -65,6 +66,7 @@ const convertToPatientFormData = (patient: any): PatientData => {
     pulse: patient.pulse || null,
     temperature: patient.temperature || null,
     oxygenSaturation: patient.oxygenSaturation || null,
+    respiratoryRate: patient.respiratoryRate || null,
     bloodGroup: patient.bloodGroup || null,
     lmp: patient.lmp || null,
     visitDate: patient.visitDate || null,
@@ -210,6 +212,7 @@ export default function ConsultationPage() {
       pulse: c.pulse || null,
       temperature: c.temperature || null,
       oxygenSaturation: c.spo2 || null,
+      respiratoryRate: c.respiratoryRate || null,
       bloodGroup: originalPatient?.bloodGroup || null,
       lmp: originalPatient?.lmp || null,
       visitDate: prescription.createdAt ? prescription.createdAt.split("T")[0] : null,
@@ -223,9 +226,14 @@ export default function ConsultationPage() {
         id: `ge-${i}`,
         examinationName: ge,
       })),
-      pastMedicalHistories: c.pastMedicalHistories || [],
+      pastMedicalHistories: (c.pastMedicalHistories || []).map((pmh: any, i: number) => ({
+        id: pmh.id || `pmh-${i}`,
+        allergies: pmh.allergies ?? null,
+        currentMedicine: pmh.currentMedicine ?? null,
+        medicalHistory: pmh.medicalHistory ?? null,
+      })),
       advice: c.advice || null,
-      testsRequested: (prescription.testRequested || []).map((tr: any, i: number) => ({
+      testsRequested: (prescription.diagnostics || prescription.testRequested || []).map((tr: any, i: number) => ({
         id: `tr-${i}`,
         testName: tr.testName,
         notes: tr.notes || null,
@@ -335,72 +343,254 @@ export default function ConsultationPage() {
         throw new Error("No active registration found for this patient. Please register the patient first.");
       }
 
-      // Build payload matching new API structure
-      const payload = {
-        registrationId: Number(registrationId),
-        registrationNumber: originalPatient?.registrationNumber || patientData.registrationNumber || undefined,
-        bp:
-          patientData.bloodPressureSystolic && patientData.bloodPressureDiastolic
-            ? `${patientData.bloodPressureSystolic}/${patientData.bloodPressureDiastolic}`
-            : null,
-        pulse: patientData.pulse?.toString() || null,
-        temperature: patientData.temperature?.toString() || null,
-        spo2: patientData.oxygenSaturation?.toString() || null,
-        weight: patientData.weight?.toString() || null,
-        height: patientData.height?.toString() || null,
+      // ==========================================
+      // 1. Validation Checks matching Backend DTOs
+      // ==========================================
 
-        // Complaints - array of objects
-        complaints: patientData.complaints.map((c) => ({
-          complaintName: c.complaintName || "",
-          complaintFrequency: c.complaintFrequency || "",
-          severity: c.severity || "",
-          complaintDuration: c.complaintDuration || "",
-        })),
+      // Vitals Validation (height, weight, temperature, pulse, spo2, respiratoryRate >= 0)
+      if (patientData.height !== null && patientData.height < 0) {
+        throw new Error("Vitals: Height must be positive or zero.");
+      }
+      if (patientData.weight !== null && patientData.weight < 0) {
+        throw new Error("Vitals: Weight must be positive or zero.");
+      }
+      if (patientData.temperature !== null && patientData.temperature < 0) {
+        throw new Error("Vitals: Temperature must be positive or zero.");
+      }
+      if (patientData.pulse !== null && patientData.pulse < 0) {
+        throw new Error("Vitals: Pulse must be positive or zero.");
+      }
+      if (patientData.oxygenSaturation !== null && patientData.oxygenSaturation < 0) {
+        throw new Error("Vitals: SpO2 must be positive or zero.");
+      }
+      if (patientData.respiratoryRate !== null && patientData.respiratoryRate !== undefined && patientData.respiratoryRate < 0) {
+        throw new Error("Vitals: Respiratory Rate must be positive or zero.");
+      }
+      
+      let bpStr = null;
+      if (patientData.bloodPressureSystolic && patientData.bloodPressureDiastolic) {
+        bpStr = `${patientData.bloodPressureSystolic}/${patientData.bloodPressureDiastolic}`;
+        if (bpStr.length > 20) {
+          throw new Error("Vitals: Blood Pressure format length must not exceed 20 characters.");
+        }
+      }
 
-        // General Examinations - array of strings
-        generalExaminations: patientData.generalExaminations.map((ge) => ge.examinationName).filter(Boolean),
+      // Chief Complaints (Name required, max 255, frequency/severity/duration max 100)
+      const validComplaints = (patientData.complaints || [])
+        .filter((c) => c.complaintName && c.complaintName.trim() !== "")
+        .map((c) => {
+          const name = c.complaintName.trim();
+          if (name.length > 255) {
+            throw new Error(`Chief Complaints: "${name}" exceeds 255 characters.`);
+          }
+          if (c.complaintFrequency && c.complaintFrequency.length > 100) {
+            throw new Error(`Chief Complaints: Frequency for "${name}" exceeds 100 characters.`);
+          }
+          if (c.severity && c.severity.length > 100) {
+            throw new Error(`Chief Complaints: Severity for "${name}" exceeds 100 characters.`);
+          }
+          if (c.complaintDuration && c.complaintDuration.length > 100) {
+            throw new Error(`Chief Complaints: Duration for "${name}" exceeds 100 characters.`);
+          }
+          return {
+            complaintName: name,
+            complaintFrequency: c.complaintFrequency || "",
+            severity: c.severity || "",
+            complaintDuration: c.complaintDuration || "",
+          };
+        });
 
-        // Past Medical Histories - array of objects
-        pastMedicalHistories: patientData.pastMedicalHistories.map((pmh) => ({
-          allergies: pmh.allergies || "",
-          currentMedicine: pmh.currentMedicine || "",
-          medicalHistory: pmh.medicalHistory || "",
-        })),
+      // General Examinations (Max 255)
+      const validGeneralExaminations = (patientData.generalExaminations || [])
+        .map((ge) => ge.examinationName)
+        .filter(Boolean)
+        .filter((name) => name.trim() !== "")
+        .map((name) => {
+          const val = name.trim();
+          if (val.length > 255) {
+            throw new Error(`General Examination: "${val}" exceeds 255 characters.`);
+          }
+          return val;
+        });
 
-        // Diagnoses - array of objects
-        diagnoses: patientData.diagnoses.map((d) => ({
-          diagnosisName: d.diagnosisName || "",
-          diagnosisCode: d.diagnosisCode || "",
-          diagnosisDuration: d.diagnosisDuration || "",
-        })),
+      // Past Medical History (allergies/currentMedicine max 1000, medicalHistory max 2000)
+      const validPastMedicalHistories = (patientData.pastMedicalHistories || [])
+        .filter((pmh) => (pmh.allergies && pmh.allergies.trim() !== "") ||
+                         (pmh.currentMedicine && pmh.currentMedicine.trim() !== "") ||
+                         (pmh.medicalHistory && pmh.medicalHistory.trim() !== ""))
+        .map((pmh) => {
+          if (pmh.allergies && pmh.allergies.length > 1000) {
+            throw new Error(`Medical History: Allergies exceeds 1000 characters.`);
+          }
+          if (pmh.currentMedicine && pmh.currentMedicine.length > 1000) {
+            throw new Error(`Medical History: Current Medicine exceeds 1000 characters.`);
+          }
+          if (pmh.medicalHistory && pmh.medicalHistory.length > 2000) {
+            throw new Error(`Medical History: Medical History exceeds 2000 characters.`);
+          }
+          return {
+            allergies: pmh.allergies || "",
+            currentMedicine: pmh.currentMedicine || "",
+            medicalHistory: pmh.medicalHistory || "",
+          };
+        });
 
-        // Investigations - array of objects
-        investigations: patientData.investigations.map((inv) => ({
-          investigationName: inv.investigationName || "",
+      // Diagnoses (Name required, max 255, code/duration max 100)
+      const validDiagnoses = (patientData.diagnoses || [])
+        .filter((d) => d.diagnosisName && d.diagnosisName.trim() !== "")
+        .map((d) => {
+          const name = d.diagnosisName.trim();
+          if (name.length > 255) {
+            throw new Error(`Diagnosis: "${name}" exceeds 255 characters.`);
+          }
+          if (d.diagnosisCode && d.diagnosisCode.length > 100) {
+            throw new Error(`Diagnosis: Code for "${name}" exceeds 100 characters.`);
+          }
+          if (d.diagnosisDuration && d.diagnosisDuration.length > 100) {
+            throw new Error(`Diagnosis: Duration for "${name}" exceeds 100 characters.`);
+          }
+          return {
+            diagnosisName: name,
+            diagnosisCode: d.diagnosisCode || "",
+            diagnosisDuration: d.diagnosisDuration || "",
+          };
+        });
+
+      // Diagnostics (Name required, max 255, notes max 1000)
+      const validDiagnostics = [
+        ...patientData.investigations.map((inv) => ({
+          testName: inv.investigationName || "",
           notes: inv.notes || "",
-          documentUrl: inv.documentUrl || null,
-          documentFileName: inv.documentFileName || null,
         })),
-
-        // Test Requested - array of objects
-        testRequested: patientData.testsRequested.map((tr) => ({
+        ...patientData.testsRequested.map((tr) => ({
           testName: tr.testName || "",
           notes: tr.notes || "",
         })),
+      ]
+        .filter((d) => d.testName && d.testName.trim() !== "")
+        .map((d) => {
+          const name = d.testName.trim();
+          if (name.length > 255) {
+            throw new Error(`Diagnostics: Test name "${name}" exceeds 255 characters.`);
+          }
+          if (d.notes && d.notes.length > 1000) {
+            throw new Error(`Diagnostics: Notes for test "${name}" exceeds 1000 characters.`);
+          }
+          return {
+            testName: name,
+            notes: d.notes || "",
+          };
+        });
 
-        // Documents - array of objects
-        documents: [
-          ...patientData.documents.map((doc) => ({
-            fileName: doc.fileName || "",
-            url: doc.url || "",
-          })),
-          ...patientData.investigations
-            .filter((inv) => inv.documentUrl)
-            .map((inv) => ({
-              fileName: inv.documentFileName || "investigation_doc",
-              url: inv.documentUrl || "",
-            }))
-        ],
+      // Documents (fileName max 255, url max 2048)
+      const validDocuments = [
+        ...patientData.documents.map((doc) => ({
+          fileName: doc.fileName || "",
+          url: doc.url || "",
+        })),
+        ...patientData.investigations
+          .filter((inv) => inv.documentUrl)
+          .map((inv) => ({
+            fileName: inv.documentFileName || "investigation_doc",
+            url: inv.documentUrl || "",
+          }))
+      ]
+        .filter((doc) => doc.fileName && doc.url && doc.fileName.trim() !== "" && doc.url.trim() !== "")
+        .map((doc) => {
+          const fileName = doc.fileName.trim();
+          const url = doc.url.trim();
+          if (fileName.length > 255) {
+            throw new Error(`Documents: File name exceeds 255 characters.`);
+          }
+          if (url.length > 2048) {
+            throw new Error(`Documents: URL exceeds 2048 characters.`);
+          }
+          return {
+            fileName,
+            url,
+          };
+        });
+
+      // Medicines (Name required, max 255, strength/dosage/frequency/duration max 100, instruction max 500, quantity max 50)
+      const validMedicines = (patientData.medicines || [])
+        .filter((m) => m.medicineName && m.medicineName.trim() !== "")
+        .map((m) => {
+          const name = m.medicineName.trim();
+          if (name.length > 255) {
+            throw new Error(`Medicines: Medicine name "${name}" exceeds 255 characters.`);
+          }
+          if (m.strength && m.strength.length > 100) {
+            throw new Error(`Medicines: Strength for "${name}" exceeds 100 characters.`);
+          }
+          if (m.dosage && m.dosage.length > 100) {
+            throw new Error(`Medicines: Dosage for "${name}" exceeds 100 characters.`);
+          }
+          if (m.frequency && m.frequency.length > 100) {
+            throw new Error(`Medicines: Frequency for "${name}" exceeds 100 characters.`);
+          }
+          if (m.duration && m.duration.length > 100) {
+            throw new Error(`Medicines: Duration for "${name}" exceeds 100 characters.`);
+          }
+          if (m.instruction && m.instruction.length > 500) {
+            throw new Error(`Medicines: Instruction for "${name}" exceeds 500 characters.`);
+          }
+          if (m.quantity && m.quantity.length > 50) {
+            throw new Error(`Medicines: Quantity for "${name}" exceeds 50 characters.`);
+          }
+          return {
+            medicineName: name,
+            strength: m.strength || "",
+            dosage: m.dosage || "",
+            frequency: m.frequency || "",
+            duration: m.duration || "",
+            instruction: m.instruction || "",
+            quantity: m.quantity || "1",
+          };
+        });
+
+      // Advice & Notes length (max 2000)
+      if (patientData.advice && patientData.advice.length > 2000) {
+        throw new Error("Advice text exceeds 2000 characters.");
+      }
+      if (patientData.quickNotes && patientData.quickNotes.length > 2000) {
+        throw new Error("Prescription Notes exceeds 2000 characters.");
+      }
+
+      // Follow Up Date validation (Future or Present)
+      if (patientData.followUp) {
+        // Parse date components locally to avoid UTC vs local timezone mismatch
+        // e.g. "2026-06-23" must be treated as local date, not UTC midnight
+        const [fyear, fmonth, fday] = patientData.followUp.split("-").map(Number);
+        const followUp = new Date(fyear, fmonth - 1, fday); // local midnight
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (followUp < today) {
+          throw new Error("Follow-up date cannot be in the past.");
+        }
+      }
+
+      // ==========================================
+      // 2. Build Payload
+      // ==========================================
+      const payload = {
+        registrationId: Number(registrationId),
+        registrationNumber: originalPatient?.registrationNumber || patientData.registrationNumber || undefined,
+        
+        // Vitals mapped as actual numbers (or omitted via undefined if null)
+        height: patientData.height !== null ? Number(patientData.height) : undefined,
+        weight: patientData.weight !== null ? Number(patientData.weight) : undefined,
+        temperature: patientData.temperature !== null ? Number(patientData.temperature) : undefined,
+        pulse: patientData.pulse !== null ? Number(patientData.pulse) : undefined,
+        spo2: patientData.oxygenSaturation !== null ? Number(patientData.oxygenSaturation) : undefined,
+        bp: bpStr || undefined,
+        respiratoryRate: patientData.respiratoryRate !== null ? Number(patientData.respiratoryRate) : undefined,
+
+        complaints: validComplaints,
+        generalExaminations: validGeneralExaminations,
+        pastMedicalHistories: validPastMedicalHistories,
+        diagnoses: validDiagnoses,
+        diagnostics: validDiagnostics,
+        documents: validDocuments,
 
         advice: patientData.advice || null,
         notes: patientData.quickNotes || null,
@@ -409,17 +599,7 @@ export default function ConsultationPage() {
         currentMedicine: patientData.currentMedications || null,
 
         followUpDate: patientData.followUp ? new Date(patientData.followUp).toISOString() : null,
-
-        // Medicines - array of objects with new field names
-        medicines: patientData.medicines.map((m) => ({
-          medicineName: m.medicineName || "",
-          strength: m.strength || "",
-          dosage: m.dosage || "",
-          frequency: m.frequency || "",
-          duration: m.duration || "",
-          instruction: m.instruction || "",
-          quantity: m.quantity || "1",
-        })),
+        medicines: validMedicines,
       };
 
       const sameDayPrescription = prescriptionHistory.find((p) => {
