@@ -235,20 +235,30 @@ export default function ConsultationPage() {
         medicalHistory: pmh.medicalHistory ?? null,
       })),
       advice: c.advice || null,
-      testsRequested: (prescription.diagnostics || prescription.testRequested || []).map((tr: any, i: number) => ({
+      testsRequested: (prescription.testRequested || prescription.diagnostics || []).map((tr: any, i: number) => ({
         id: `tr-${i}`,
-        testName: tr.testName,
+        name: tr.testName,
         notes: tr.notes || null,
       })),
       nextVisit: null,
       // Map investigation document links into investigations
-      investigations: (prescription.investigations || []).map((inv: any, i: number) => ({
-        id: `inv-${i}`,
-        investigationName: inv.investigationName,
-        notes: inv.notes || null,
-        documentUrl: inv.documentUrl || null,
-        documentFileName: inv.documentFileName || null,
-      })),
+      investigations: (prescription.investigations || []).map((inv: any, i: number) => {
+        let value = "";
+        let notes = inv.notes || null;
+        if (inv.notes && inv.notes.includes(" - ")) {
+           const parts = inv.notes.split(" - ");
+           value = parts[0];
+           notes = parts.slice(1).join(" - ");
+        }
+        return {
+          id: `inv-${i}`,
+          test: inv.investigationName || inv.testName || "",
+          value: value,
+          notes: notes,
+          documentUrl: inv.documentUrl || null,
+          documentFileName: inv.documentFileName || null,
+        };
+      }),
       // Build a set of investigation document URLs so we can filter them out of
       // the documents list — they already belong to an investigation row
       documents: (() => {
@@ -460,29 +470,43 @@ export default function ConsultationPage() {
           };
         });
 
-      // Diagnostics (Name required, max 255, notes max 1000)
-      const validDiagnostics = [
-        ...patientData.investigations.map((inv) => ({
-          testName: inv.test || "",
-          notes: [inv.value, inv.notes].filter(Boolean).join(" - ") || "",
-        })),
-        ...patientData.testsRequested.map((tr) => ({
-          testName: tr.name || "",
-          notes: tr.notes || "",
-        })),
-      ]
-        .filter((d) => d.testName && d.testName.trim() !== "")
-        .map((d) => {
-          const name = d.testName.trim();
+      // Diagnostics - left empty since we use investigations and testRequested explicitly now
+      const validDiagnostics: any[] = [];
+
+      // Investigations (Name required, max 255, notes max 1000)
+      const validInvestigations = (patientData.investigations || [])
+        .filter((inv) => inv.test && inv.test.trim() !== "")
+        .map((inv) => {
+          const name = inv.test.trim();
           if (name.length > 255) {
-            throw new Error(`Diagnostics: Test name "${name}" exceeds 255 characters.`);
+            throw new Error(`Investigations: Test name "${name}" exceeds 255 characters.`);
           }
-          if (d.notes && d.notes.length > 1000) {
-            throw new Error(`Diagnostics: Notes for test "${name}" exceeds 1000 characters.`);
+          const notesStr = [inv.value, inv.notes].filter(Boolean).join(" - ");
+          if (notesStr.length > 1000) {
+            throw new Error(`Investigations: Notes for test "${name}" exceeds 1000 characters.`);
+          }
+          return {
+            investigationName: name,
+            notes: notesStr || "",
+            documentUrl: inv.documentUrl || undefined,
+            documentFileName: inv.documentFileName || undefined,
+          };
+        });
+
+      // Tests Requested (Name required, max 255, notes max 1000)
+      const validTestRequested = (patientData.testsRequested || [])
+        .filter((tr) => tr.name && tr.name.trim() !== "")
+        .map((tr) => {
+          const name = tr.name.trim();
+          if (name.length > 255) {
+            throw new Error(`Tests Requested: Test name "${name}" exceeds 255 characters.`);
+          }
+          if (tr.notes && tr.notes.length > 1000) {
+            throw new Error(`Tests Requested: Notes for test "${name}" exceeds 1000 characters.`);
           }
           return {
             testName: name,
-            notes: d.notes || "",
+            notes: tr.notes || "",
           };
         });
 
@@ -593,6 +617,8 @@ export default function ConsultationPage() {
         pastMedicalHistories: validPastMedicalHistories,
         diagnoses: validDiagnoses,
         diagnostics: validDiagnostics,
+        investigations: validInvestigations,
+        testRequested: validTestRequested,
         documents: validDocuments,
 
         advice: patientData.advice || undefined,
