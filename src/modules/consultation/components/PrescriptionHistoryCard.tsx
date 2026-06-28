@@ -17,7 +17,7 @@ export function PrescriptionHistoryCard({
   handleReset,
 }: PrescriptionHistoryCardProps) {
   return (
-    <Card className="border-slate-200 shadow-sm rounded-xl bg-white flex flex-col overflow-hidden">
+    <Card className="border-slate-200 shadow-sm rounded-xl bg-white flex flex-col overflow-hidden pointer-events-auto">
       <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-3 px-4">
         <CardTitle className="text-sm font-semibold text-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -45,7 +45,8 @@ export function PrescriptionHistoryCard({
             {prescriptionHistory.map((item) => (
               <div
                 key={item.prescriptionId}
-                className={`p-3 rounded-lg border text-sm transition-colors flex flex-col justify-between gap-2 ${
+                onClick={() => handleLoadPrescription(item)}
+                className={`p-3 rounded-lg border text-sm transition-colors cursor-pointer flex flex-col justify-between gap-2 ${
                   viewingPrescriptionId === item.prescriptionId ? "border-sky-500 bg-sky-50/50" : "border-slate-100 hover:bg-slate-50"
                 }`}
               >
@@ -68,8 +69,11 @@ export function PrescriptionHistoryCard({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-slate-400 hover:text-sky-600 hover:bg-sky-50"
-                      onClick={() => handleLoadPrescription(item)}
+                      className={`h-7 w-7 transition-colors ${
+                        viewingPrescriptionId === item.prescriptionId 
+                          ? "text-sky-600 bg-sky-100" 
+                          : "text-slate-400 group-hover:text-sky-600"
+                      }`}
                       title="View Prescription"
                     >
                       <Eye className="h-4 w-4" />

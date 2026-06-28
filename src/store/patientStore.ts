@@ -2,18 +2,18 @@ import { create } from "zustand";
 import { patientService } from "../services/patient.service";
 import { doctorService } from "../services/doctor.service";
 import { consultationService } from "../services/consultation.service";
-import { BackendPatient } from "../../types/backend";
+import { PatientResponse } from "../../types/backend";
 
 import { useAuthStore } from "./authStore";
 
 interface PatientState {
-  patients: BackendPatient[];
+  patients: PatientResponse[];
   consultations: any[];
   loading: boolean;
   error: string | null;
-  activePatient: BackendPatient | null;
+  activePatient: PatientResponse | null;
   fetchPatients: () => Promise<void>;
-  setActivePatient: (patient: BackendPatient | null) => void;
+  setActivePatient: (patient: PatientResponse | null) => void;
   registerPatient: (data: any) => Promise<any>;
 }
 
@@ -45,9 +45,9 @@ export const usePatientStore = create<PatientState>((set) => ({
           pincode: p.pincode,
           dateOfBirth: p.dateOfBirth || null,
           createdAt: r.createdAt || p.createdAt,
+          updatedAt: r.updatedAt || p.updatedAt || new Date().toISOString(),
           registrationId: r.registrationId,
           registrationNumber: r.registrationNumber,
-          bloodGroup: p.bloodGroup || null,
         };
       }) : [];
 

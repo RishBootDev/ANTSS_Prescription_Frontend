@@ -1,5 +1,5 @@
 import { apiClient } from "./axios";
-import type { DiagnosticResponse, DiagnosticStatus } from "../../types/backend";
+import type { DiagnosticOrderResponse, DiagnosticStatus } from "../../types/backend";
 
 export interface DiagnosticOrderRequest {
   testName: string;
@@ -16,28 +16,28 @@ export interface DiagnosticStatusRequest {
 }
 
 export const diagnosticService = {
-  createDiagnostic: (data: DiagnosticOrderRequest): Promise<DiagnosticResponse> => {
-    return apiClient.post<DiagnosticResponse>("/api/diagnostics", data);
+  createDiagnostic: (data: DiagnosticOrderRequest): Promise<DiagnosticOrderResponse> => {
+    return apiClient.post<DiagnosticOrderResponse>("/api/diagnostics", data);
   },
 
-  getDiagnosticById: (id: number): Promise<DiagnosticResponse> => {
-    return apiClient.get<DiagnosticResponse>(`/api/diagnostics/${id}`);
+  getDiagnosticById: (id: number): Promise<DiagnosticOrderResponse> => {
+    return apiClient.get<DiagnosticOrderResponse>(`/api/diagnostics/${id}`);
   },
 
-  getDiagnosticsByRegistration: (registrationNumber: string): Promise<DiagnosticResponse[]> => {
-    return apiClient.get<DiagnosticResponse[]>(`/api/diagnostics/registration/${registrationNumber}`);
+  getDiagnosticsByRegistration: (registrationNumber: string): Promise<DiagnosticOrderResponse[]> => {
+    return apiClient.get<DiagnosticOrderResponse[]>(`/api/diagnostics/registration/${registrationNumber}`);
   },
 
-  getDiagnosticsByPrescription: (prescriptionId: number): Promise<DiagnosticResponse[]> => {
-    return apiClient.get<DiagnosticResponse[]>(`/api/diagnostics/prescription/${prescriptionId}`);
+  getDiagnosticsByPrescription: (prescriptionId: number): Promise<DiagnosticOrderResponse[]> => {
+    return apiClient.get<DiagnosticOrderResponse[]>(`/api/diagnostics/prescription/${prescriptionId}`);
   },
 
-  getDiagnosticsByDocument: (documentId: number): Promise<DiagnosticResponse[]> => {
-    return apiClient.get<DiagnosticResponse[]>(`/api/diagnostics/document/${documentId}`);
+  getDiagnosticsByDocument: (documentId: number): Promise<DiagnosticOrderResponse[]> => {
+    return apiClient.get<DiagnosticOrderResponse[]>(`/api/diagnostics/document/${documentId}`);
   },
 
-  updateDiagnosticStatus: (id: number, data: DiagnosticStatusRequest): Promise<DiagnosticResponse> => {
-    return apiClient.patch<DiagnosticResponse>(`/api/diagnostics/${id}/status`, data);
+  updateDiagnosticStatus: (id: number, data: DiagnosticStatusRequest): Promise<DiagnosticOrderResponse> => {
+    return apiClient.patch<DiagnosticOrderResponse>(`/api/diagnostics/${id}/status`, data);
   },
 
   deleteDiagnostic: (id: number): Promise<void> => {

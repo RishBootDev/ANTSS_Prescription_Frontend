@@ -38,7 +38,7 @@ export interface PatientData {
   pulse: number | null;
   temperature: number | null;
   oxygenSaturation: number | null;
-  bloodGroup: string | null;
+
   lmp: string | null;
   dateOfBirth: string | null;
   visitDate: string | null;
@@ -85,7 +85,7 @@ export const emptyPatientData: Omit<PatientData, "id"> = {
   pulse: null,
   temperature: null,
   oxygenSaturation: null,
-  bloodGroup: null,
+
   lmp: null,
   dateOfBirth: null,
   visitDate: null,

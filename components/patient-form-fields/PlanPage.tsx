@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Activity, Calendar } from "lucide-react";
-import { PatientData } from "../patient-form";
+import { PatientData } from "../patient-form-fields/types";
+import { VoiceContext } from "@/hooks/useConsultationVoice";
 
 type Props = {
   data: PatientData;
@@ -24,7 +25,7 @@ type Props = {
   inputClass?: (field: keyof PatientData) => string;
 
   wrapWithMic?: (
-    fieldId: string,
+    context: VoiceContext,
     element: ReactElement<{ className?: string }>
   ) => JSX.Element;
 };
@@ -50,8 +51,13 @@ export default function PlanPage({
     <Card className="border-slate-200 shadow-sm rounded-xl bg-white overflow-hidden">
       <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-3 px-4">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-          <Activity className="h-4 w-4 text-slate-500" />
-          Plan
+          {wrapWithMic(
+            { mode: "COMPONENT", component: "Plan" },
+            <div className="flex items-center gap-2 cursor-pointer">
+              <Activity className="h-4 w-4 text-slate-500" />
+              Plan
+            </div>
+          )}
         </CardTitle>
       </CardHeader>
 
@@ -63,7 +69,7 @@ export default function PlanPage({
             Advice &amp; Instructions
           </Label>
           {wrapWithMic(
-            "advice",
+            { mode: "FIELD", field: "advice" },
             <Textarea
               rows={2}
               value={data.advice ?? ""}
@@ -86,7 +92,7 @@ export default function PlanPage({
               Next Visit Date
             </Label>
             {wrapWithMic(
-              "nextVisit",
+              { mode: "FIELD", field: "nextVisit" },
               <Input
                 type="date"
                 min={today}
@@ -110,7 +116,7 @@ export default function PlanPage({
               <span className="ml-1 text-[9px] text-muted-foreground/70">(must be today or later)</span>
             </Label>
             {wrapWithMic(
-              "followUp",
+              { mode: "FIELD", field: "followUp" },
               <Input
                 type="date"
                 min={today}

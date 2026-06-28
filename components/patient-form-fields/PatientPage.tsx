@@ -13,7 +13,8 @@ import {
 import { User, Plus, Minus, Calendar, Phone, Activity, Thermometer, Droplet, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { VoiceMicField } from "../voice-mic-field";
-import type { PatientData } from "../patient-form";
+import type { PatientData } from "../patient-form-fields/types";
+import { VoiceContext } from "@/hooks/useConsultationVoice";
 
 interface PatientPageProps {
   data: PatientData;
@@ -22,8 +23,8 @@ interface PatientPageProps {
   mic?: {
     isListening: boolean;
     isProcessing: boolean;
-    activeVoiceField: string | null;
-    onMicToggle: (fieldId: string) => void;
+    activeVoiceContext?: VoiceContext | null;
+    onMicToggle: (context: VoiceContext) => void;
   };
   registerFieldRef?: (fieldName: string, element: HTMLElement | null) => void;
   prescriptionHistoryLength?: number;
@@ -39,15 +40,20 @@ export default function PatientPage({
 }: PatientPageProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const wrapWithMic = (fieldId: keyof PatientData, element: any) => {
+  const wrapWithMic = (context: VoiceContext, element: any) => {
     if (!mic) return element;
+
+    const isActive = 
+      mic?.activeVoiceContext?.mode === context.mode &&
+      mic?.activeVoiceContext?.field === context.field &&
+      mic?.activeVoiceContext?.component === context.component;
 
     return (
       <VoiceMicField
         isListening={mic.isListening}
         isProcessing={mic.isProcessing}
-        isActive={mic.activeVoiceField === fieldId}
-        onMicToggle={() => mic.onMicToggle(String(fieldId))}
+        isActive={isActive}
+        onMicToggle={() => mic.onMicToggle(context)}
       >
         {element}
       </VoiceMicField>
@@ -73,7 +79,7 @@ export default function PatientPage({
             <div className="flex items-center justify-between">
               <div className="flex-1 max-w-[200px]">
                 {wrapWithMic(
-                  "name",
+                  { mode: "FIELD", field: "name", component: "Patient" },
                   <Input
                     ref={(el) => {
                       if (el && registerFieldRef) registerFieldRef("name", el);
@@ -99,7 +105,7 @@ export default function PatientPage({
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <div className="w-16">
                 {wrapWithMic(
-                  "age",
+                  { mode: "FIELD", field: "age", component: "Patient" },
                   <Input
                     ref={(el) => {
                       if (el && registerFieldRef) registerFieldRef("age", el);
@@ -187,9 +193,14 @@ export default function PatientPage({
                 <Phone className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400" />
                 <Input
                   value={data.contactNumber ?? ""}
-                  onChange={(e) => updateField("contactNumber", e.target.value || null)}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    updateField("contactNumber", v || null);
+                  }}
                   placeholder="Contact"
                   className="h-7 text-xs pl-6 bg-white border-slate-200"
+                  maxLength={10}
+                  inputMode="numeric"
                 />
               </div>
             </div>
@@ -197,9 +208,14 @@ export default function PatientPage({
               <label className="text-[10px] text-slate-500 font-semibold uppercase">Emergency Contact</label>
               <Input
                 value={data.emergencyContact ?? ""}
-                onChange={(e) => updateField("emergencyContact", e.target.value || null)}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  updateField("emergencyContact", v || null);
+                }}
                 placeholder="Emergency Contact"
                 className="h-7 text-xs bg-white border-slate-200"
+                maxLength={10}
+                inputMode="numeric"
               />
             </div>
             <div className="space-y-1">

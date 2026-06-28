@@ -10,7 +10,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Stethoscope, Plus, Trash2 } from "lucide-react";
-import { PatientData, GeneralExaminationEntry } from "../patient-form";
+import { PatientData, GeneralExaminationEntry } from "../patient-form-fields/types";
+import { VoiceContext } from "@/hooks/useConsultationVoice";
 
 type Props = {
   data: PatientData;
@@ -20,13 +21,14 @@ type Props = {
 
   updateGeneralExamination: (
     id: string,
+    field: keyof Omit<GeneralExaminationEntry, "id">,
     value: string
   ) => void;
 
   inputClass?: (field: string) => string;
 
   wrapWithMic?: (
-    fieldId: string,
+    context: VoiceContext,
     element: ReactElement<{ className?: string }>
   ) => JSX.Element;
   registerFieldRef?: (fieldName: string, el: HTMLElement | null) => void;
@@ -46,8 +48,13 @@ export default function GeneralExaminationPage({
       <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-3 px-4">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <Stethoscope className="h-4 w-4 text-slate-500" />
-            General Examination
+            {wrapWithMic(
+              { mode: "COMPONENT", component: "General Examinations" },
+              <div className="flex items-center gap-2 cursor-pointer">
+                <Stethoscope className="h-4 w-4 text-slate-500" />
+                General Examination
+              </div>
+            )}
           </CardTitle>
 
           <Button
@@ -69,7 +76,15 @@ export default function GeneralExaminationPage({
             No general examinations yet. Click "Add" to add one.
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
+            {/* Column Headers */}
+            <div className="flex gap-2 px-8 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+              <div className="w-1/3">Finding</div>
+              <div className="w-1/4">Status</div>
+              <div className="w-1/4">Severity</div>
+              <div className="flex-1">Notes</div>
+            </div>
+
             {(data.generalExaminations || []).map((ge, index) => (
               <div
                 key={ge.id}
@@ -80,19 +95,61 @@ export default function GeneralExaminationPage({
                   {index + 1}
                 </div>
 
-                {/* Examination Name */}
-                {wrapWithMic(
-                  `generalExaminations.${ge.id}.name`,
-                  <Input
-                    value={ge.examinationName}
-                    onChange={(e) =>
-                      updateGeneralExamination(ge.id, e.target.value)
-                    }
-                    placeholder="e.g., Afebrile, BP normal"
-                    className={`h-8 text-xs flex-1 bg-slate-50 border-slate-200 focus-visible:ring-sky-500 ${inputClass("generalExaminations")}`}
-                    ref={(el) => registerFieldRef?.(`generalExaminations.${ge.id}`, el)}
-                  />
-                )}
+                {/* Finding */}
+                <div className="w-1/3">
+                  {wrapWithMic(
+                    { mode: "FIELD", field: `generalExaminations.${ge.id}.finding` },
+                    <Input
+                      value={ge.finding}
+                      onChange={(e) => updateGeneralExamination(ge.id, "finding", e.target.value)}
+                      placeholder="e.g., Pallor"
+                      className={`h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500 ${inputClass("generalExaminations")}`}
+                      ref={(el) => registerFieldRef?.(`generalExaminations.${ge.id}.finding`, el)}
+                    />
+                  )}
+                </div>
+
+                {/* Status */}
+                <div className="w-1/4">
+                  {wrapWithMic(
+                    { mode: "FIELD", field: `generalExaminations.${ge.id}.status` },
+                    <Input
+                      value={ge.status}
+                      onChange={(e) => updateGeneralExamination(ge.id, "status", e.target.value)}
+                      placeholder="e.g., Present"
+                      className={`h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500 ${inputClass("generalExaminations")}`}
+                      ref={(el) => registerFieldRef?.(`generalExaminations.${ge.id}.status`, el)}
+                    />
+                  )}
+                </div>
+
+                {/* Severity */}
+                <div className="w-1/4">
+                  {wrapWithMic(
+                    { mode: "FIELD", field: `generalExaminations.${ge.id}.severity` },
+                    <Input
+                      value={ge.severity || ""}
+                      onChange={(e) => updateGeneralExamination(ge.id, "severity", e.target.value)}
+                      placeholder="e.g., Mild"
+                      className={`h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500 ${inputClass("generalExaminations")}`}
+                      ref={(el) => registerFieldRef?.(`generalExaminations.${ge.id}.severity`, el)}
+                    />
+                  )}
+                </div>
+
+                {/* Notes */}
+                <div className="flex-1">
+                  {wrapWithMic(
+                    { mode: "FIELD", field: `generalExaminations.${ge.id}.notes` },
+                    <Input
+                      value={ge.notes || ""}
+                      onChange={(e) => updateGeneralExamination(ge.id, "notes", e.target.value)}
+                      placeholder="e.g., lower eyelid"
+                      className={`h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500 ${inputClass("generalExaminations")}`}
+                      ref={(el) => registerFieldRef?.(`generalExaminations.${ge.id}.notes`, el)}
+                    />
+                  )}
+                </div>
 
                 {/* Delete */}
                 <Button

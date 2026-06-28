@@ -174,7 +174,7 @@ export default function PrescriptionView({ prescription: directPrescription, pre
       </div>
 
       {/* Main A4 Document Container */}
-      <div className="w-[210mm] min-h-[297mm] bg-white text-black font-serif shadow-2xl p-[15mm] flex flex-col justify-between relative print:shadow-none print:w-full print:h-full print:p-0 print:m-0 print:min-h-0 print:overflow-visible">
+      <div className="w-[210mm] min-h-[297mm] bg-white text-black font-sans shadow-2xl p-[15mm] flex flex-col justify-between relative print:shadow-none print:w-full print:h-full print:p-0 print:m-0 print:min-h-0 print:overflow-visible">
         
         {/* Background Image Watermark */}
         <div className="absolute inset-0 pointer-events-none flex justify-center items-center z-0 overflow-hidden">
@@ -252,7 +252,6 @@ export default function PrescriptionView({ prescription: directPrescription, pre
             padding: 0 !important;
             width: 100% !important;
             height: auto !important;
-            font-family: 'Times New Roman', Times, serif !important;
           }
           
           .no-print {

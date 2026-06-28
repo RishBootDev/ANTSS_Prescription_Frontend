@@ -1,52 +1,52 @@
 import { apiClient } from "./axios";
-import { BackendPatient, BackendPatientRegistration } from "../../types/backend";
+import { PatientRequest, PatientResponse, PatientRegistrationRequest, PatientRegistrationResponse } from "../../types/backend";
 
 export const patientService = {
-  createPatient: (patientData: BackendPatient): Promise<BackendPatient> => {
-    return apiClient.post<BackendPatient>("/api/patients", patientData);
+  createPatient: (patientData: PatientRequest): Promise<PatientResponse> => {
+    return apiClient.post<PatientResponse>("/api/patients", patientData);
   },
 
-  getPatientById: (patientId: number): Promise<BackendPatient> => {
-    return apiClient.get<BackendPatient>(`/api/patients/${patientId}`);
+  getPatientById: (patientId: number): Promise<PatientResponse> => {
+    return apiClient.get<PatientResponse>(`/api/patients/${patientId}`);
   },
 
-  getAllPatients: (): Promise<BackendPatient[]> => {
-    return apiClient.get<BackendPatient[]>("/api/patients");
+  getAllPatients: (): Promise<PatientResponse[]> => {
+    return apiClient.get<PatientResponse[]>("/api/patients");
   },
 
-  updatePatient: (patientId: number, patientData: BackendPatient): Promise<BackendPatient> => {
-    return apiClient.put<BackendPatient>(`/api/patients/${patientId}`, patientData);
+  updatePatient: (patientId: number, patientData: PatientRequest): Promise<PatientResponse> => {
+    return apiClient.put<PatientResponse>(`/api/patients/${patientId}`, patientData);
   },
 
   deletePatient: (patientId: number): Promise<string> => {
     return apiClient.delete<string>(`/api/patients/${patientId}`);
   },
 
-  createRegistration: (registrationData: Partial<BackendPatientRegistration>): Promise<BackendPatientRegistration> => {
-    return apiClient.post<BackendPatientRegistration>("/api/patient-registrations", registrationData);
+  createRegistration: (registrationData: Partial<PatientRegistrationRequest>): Promise<PatientRegistrationResponse> => {
+    return apiClient.post<PatientRegistrationResponse>("/api/patient-registrations", registrationData);
   },
 
-  getAllRegistrations: (): Promise<BackendPatientRegistration[]> => {
-    return apiClient.get<BackendPatientRegistration[]>("/api/patient-registrations");
+  getAllRegistrations: (): Promise<PatientRegistrationResponse[]> => {
+    return apiClient.get<PatientRegistrationResponse[]>("/api/patient-registrations");
   },
 
-  getRegistrationById: (registrationId: number): Promise<BackendPatientRegistration> => {
-    return apiClient.get<BackendPatientRegistration>(`/api/patient-registrations/${registrationId}`);
+  getRegistrationById: (registrationId: number): Promise<PatientRegistrationResponse> => {
+    return apiClient.get<PatientRegistrationResponse>(`/api/patient-registrations/${registrationId}`);
   },
 
-  getRegistrationsByClinic: (clinicId: number): Promise<BackendPatientRegistration[]> => {
-    return apiClient.get<BackendPatientRegistration[]>(`/api/patient-registrations/clinic/${clinicId}`);
+  getRegistrationsByClinic: (clinicId: number): Promise<PatientRegistrationResponse[]> => {
+    return apiClient.get<PatientRegistrationResponse[]>(`/api/patient-registrations/clinic/${clinicId}`);
   },
 
-  getRegistrationsByHospital: (hospitalId: number): Promise<BackendPatientRegistration[]> => {
-    return apiClient.get<BackendPatientRegistration[]>(`/api/patient-registrations/hospital/${hospitalId}`);
+  getRegistrationsByHospital: (hospitalId: number): Promise<PatientRegistrationResponse[]> => {
+    return apiClient.get<PatientRegistrationResponse[]>(`/api/patient-registrations/hospital/${hospitalId}`);
   },
 
   updateRegistration: (
     registrationId: number,
-    registrationData: Partial<BackendPatientRegistration>
-  ): Promise<BackendPatientRegistration> => {
-    return apiClient.put<BackendPatientRegistration>(`/api/patient-registrations/${registrationId}`, registrationData);
+    registrationData: Partial<PatientRegistrationRequest>
+  ): Promise<PatientRegistrationResponse> => {
+    return apiClient.put<PatientRegistrationResponse>(`/api/patient-registrations/${registrationId}`, registrationData);
   },
 
   deleteRegistration: (registrationId: number): Promise<string> => {

@@ -36,12 +36,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function PatientListPage() {
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, initialize, logout } = useAuthStore();
-  const { patients, consultations, fetchPatients } = usePatientStore();
+  const { patients, consultations, fetchPatients, loading } = usePatientStore();
   const { savePrescription } = usePrescriptionStore();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -344,6 +345,7 @@ export default function PatientListPage() {
                 patients={mappedPatients}
                 searchQuery={searchQuery}
                 genderFilter={genderFilter}
+                isLoading={loading}
                 onConsult={handleConsult}
                 onProfile={handleProfile}
               />
@@ -418,7 +420,19 @@ export default function PatientListPage() {
 
               <Card>
                 <CardContent className="p-0">
-                  {filteredFollowUps.length === 0 ? (
+                  {loading ? (
+                    <div className="p-6 space-y-4">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="flex items-center space-x-4">
+                          <Skeleton className="h-8 w-[250px]" />
+                          <Skeleton className="h-8 w-24" />
+                          <Skeleton className="h-8 w-[150px]" />
+                          <Skeleton className="h-8 w-32" />
+                          <Skeleton className="h-8 w-20" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : filteredFollowUps.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
                       <CalendarCheck className="h-12 w-12 text-muted-foreground mb-4" />
                       <h3 className="text-lg font-semibold">No follow-ups found</h3>

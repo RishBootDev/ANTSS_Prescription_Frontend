@@ -1,8 +1,24 @@
 "use client"
 
 import { useState, useCallback, useRef, useEffect } from "react"
-import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
-import { PatientData, MedicineEntry, ComplaintEntry, DiagnosisEntry } from "@/components/patient-form"
+import { useAudioRecorder } from "@/src/hooks/useAudioRecorder"
+import { 
+  PatientData, 
+  MedicineEntry, 
+  ComplaintEntry, 
+  DiagnosisEntry,
+  GeneralExaminationEntry,
+  PastMedicalHistoryEntry,
+  InvestigationEntry,
+  TestRequestedEntry
+} from "@/components/patient-form-fields/types"
+
+export type VoiceMode = "FIELD" | "COMPONENT" | "GLOBAL";
+export interface VoiceContext {
+  mode: VoiceMode;
+  component?: string;
+  field?: string;
+}
 
 interface UseConsultationVoiceOptions {
   patientData: PatientData;
@@ -10,68 +26,54 @@ interface UseConsultationVoiceOptions {
 }
 
 export function useConsultationVoice({ patientData, setPatientData }: UseConsultationVoiceOptions) {
-  const [isLoading, setIsLoading] = useState(false)
+  const [assistantState, setAssistantState] = useState<"idle" | "listening" | "transcribing" | "understanding" | "updating" | "speaking">("idle")
   const [highlightedFields, setHighlightedFields] = useState<string[]>([])
   const [isAvatarSpeaking, setIsAvatarSpeaking] = useState(false)
-  const [activeVoiceField, setActiveVoiceField] = useState<string | null>(null)
-  const [focusedField, setFocusedField] = useState<string | null>(null)
+  const [activeVoiceContext, setActiveVoiceContext] = useState<VoiceContext>({ mode: "GLOBAL" })
+  const [extractedPreview, setExtractedPreview] = useState<any>(null)
+  const [transcript, setTranscript] = useState("")
 
   const fieldRefs = useRef<Map<string, HTMLElement>>(new Map())
-  const lastProcessedTranscriptRef = useRef<string>("")
-  const processDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isSpeakingRef = useRef(false)
-  const hasProcessedCurrentTranscriptRef = useRef(false)
+  const lastExtractedTranscriptRef = useRef("")
+  const transcriptRef = useRef(transcript)
+  const activeVoiceContextRef = useRef(activeVoiceContext)
+
+  useEffect(() => {
+    transcriptRef.current = transcript;
+  }, [transcript]);
+
+  useEffect(() => {
+    activeVoiceContextRef.current = activeVoiceContext;
+  }, [activeVoiceContext]);
 
   const {
-    transcript,
-    isListening,
+    isRecording: isListening,
+    error: recorderError,
+    startRecording,
+    stopRecording,
+    getAccumulatedAudio,
     isSupported,
-    error,
-    startListening,
-    stopListening,
-    resetTranscript,
-  } = useSpeechRecognition({ lang: "en-US", continuous: true })
+  } = useAudioRecorder()
 
-  // Text-to-Speech function
+  // --- TTS ---
   const speak = useCallback((text: string) => {
-    if (!("speechSynthesis" in window)) {
-      console.log("Text-to-speech not supported")
-      return
-    }
-
+    if (!("speechSynthesis" in window)) return
     if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
       window.speechSynthesis.cancel()
       isSpeakingRef.current = false
     }
-
     if (!text) return
 
     const utterance = new SpeechSynthesisUtterance(text)
-    utterance.rate = 1
-    utterance.pitch = 1
-    utterance.volume = 1
+    utterance.rate = 1; utterance.pitch = 1; utterance.volume = 1;
 
-    utterance.onstart = () => {
-      isSpeakingRef.current = true
-      setIsAvatarSpeaking(true)
-    }
-
-    utterance.onend = () => {
-      isSpeakingRef.current = false
-      setIsAvatarSpeaking(false)
-    }
-
-    utterance.onerror = (event) => {
-      isSpeakingRef.current = false
-      if (event.error !== 'canceled' && event.error !== 'interrupted') {
-        console.error("TTS error:", event.error)
-      }
-    }
-
+    utterance.onstart = () => { isSpeakingRef.current = true; setIsAvatarSpeaking(true); setAssistantState("speaking"); }
+    utterance.onend = () => { isSpeakingRef.current = false; setIsAvatarSpeaking(false); setAssistantState("idle"); }
+    utterance.onerror = (e) => { isSpeakingRef.current = false; if (e.error !== 'canceled') console.error("TTS error:", e.error); }
     window.speechSynthesis.speak(utterance)
   }, [])
 
-  // Interrupt AI speech when user starts speaking
   const handleUserStartedSpeaking = useCallback(() => {
     if (isSpeakingRef.current) {
       window.speechSynthesis.cancel()
@@ -80,249 +82,325 @@ export function useConsultationVoice({ patientData, setPatientData }: UseConsult
     }
   }, [])
 
-  // Register a field's element ref
   const registerFieldRef = useCallback((fieldName: string, element: HTMLElement | null) => {
-    if (element) {
-      fieldRefs.current.set(fieldName, element)
-    } else {
-      fieldRefs.current.delete(fieldName)
-    }
+    if (element) fieldRefs.current.set(fieldName, element)
+    else fieldRefs.current.delete(fieldName)
   }, [])
 
-  const processTranscript = useCallback(async (text: string) => {
-    if (!text.trim()) return
+  // --- Core API Calls ---
+  const fetchTranscription = useCallback(async () => {
+    const blob = await getAccumulatedAudio();
+    if (!blob) return;
 
-    const trimmedText = text.trim()
-    if (trimmedText === lastProcessedTranscriptRef.current) {
-      return
-    }
-    lastProcessedTranscriptRef.current = trimmedText
+    setAssistantState("transcribing");
+    const formData = new FormData();
+    formData.append("audio", blob, "chunk.webm");
 
-    setIsLoading(true)
     try {
-      const response = await fetch("/api/extract-patient", {
+      const res = await fetch("/api/ai/transcribe", { method: "POST", body: formData });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.transcript) {
+          setTranscript(data.transcript);
+        }
+      }
+    } catch (err) {
+      console.error("Transcription error:", err);
+    }
+  }, [getAccumulatedAudio]);
+
+  const runExtraction = useCallback(async (currentTranscript: string) => {
+    if (!currentTranscript || currentTranscript === lastExtractedTranscriptRef.current) return;
+
+    setAssistantState("understanding");
+    try {
+      const payload = {
+        transcript: currentTranscript,
+        mode: activeVoiceContextRef.current.mode,
+        component: activeVoiceContextRef.current.component,
+        field: activeVoiceContextRef.current.field
+      };
+
+      const res = await fetch("/api/ai/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      })
+        body: JSON.stringify(payload),
+      });
 
-      const data: unknown = await response.json()
-      if (!data || typeof data !== "object" || !("result" in data)) return
+      if (res.ok) {
+        const data = await res.json();
+        if (data.result) {
+          setAssistantState("updating");
+          setExtractedPreview(data.result);
+          lastExtractedTranscriptRef.current = currentTranscript;
+          mergeExtractedData(data.result);
+          
+          if (data.reply) {
+            speak(data.reply);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Extraction error:", err);
+    }
+  }, [speak]);
 
-      const responseObj = data as { result?: Partial<Record<keyof PatientData, unknown>>; reply?: string }
-      const extracted = responseObj.result
-      const reply = responseObj.reply
+  // Merge JSON deeply without destroying existing fields unnecessarily
+  const mergeExtractedData = (extracted: Partial<Record<keyof PatientData, unknown>>) => {
+    const newHighlighted: string[] = []
 
-      if (!extracted || typeof extracted !== "object") return
+    setPatientData((prev) => {
+      const updated: PatientData = { ...prev }
 
-      const newHighlighted: string[] = []
+      Object.keys(extracted).forEach((key) => {
+        const typedKey = key as keyof PatientData
+        const value = extracted[typedKey] as unknown
 
-      setPatientData((prev) => {
-        const updated: PatientData = { ...prev }
-
-        Object.keys(extracted).forEach((key) => {
-          const typedKey = key as keyof PatientData
-          const value = extracted[typedKey] as unknown
-
-          if (typedKey === "medicines") {
-            if (Array.isArray(value) && value.length > 0) {
-              const newMedicines: MedicineEntry[] = value.map((med, idx) => {
-                const m = med as Partial<MedicineEntry>
-                return {
-                  id: `med-${Date.now()}-${idx}`,
-                  medicineName: (m.medicineName ?? "") as string,
-                  strength: (m.strength ?? "") as string,
-                  dosage: (m.dosage ?? "") as string,
-                  frequency: (m.frequency ?? "") as string,
-                  duration: (m.duration ?? "") as string,
-                  instruction: (m.instruction ?? "") as string,
-                  quantity: (m.quantity ?? "") as string,
-                }
-              })
-
-              const medicineKey = (m: MedicineEntry) =>
-                `${m.medicineName}`.trim().toLowerCase() +
-                `|${m.strength}`.trim().toLowerCase() +
-                `|${m.dosage}`.trim().toLowerCase() +
-                `|${m.frequency}`.trim().toLowerCase() +
-                `|${m.duration}`.trim().toLowerCase() +
-                `|${m.instruction}`.trim().toLowerCase() +
-                `|${m.quantity}`.trim().toLowerCase()
-
-              const existingKeys = new Set(prev.medicines.map(medicineKey))
-              const uniqueToAdd = newMedicines.filter((m) => !existingKeys.has(medicineKey(m)))
-
+        // Medicines
+        if (typedKey === "medicines") {
+          if (Array.isArray(value) && value.length > 0) {
+            const newMedicines: MedicineEntry[] = value.map((m, idx) => ({
+              id: `med-${Date.now()}-${idx}`,
+              medicineName: (m.medicineName ?? "") as string,
+              strength: (m.strength ?? "") as string,
+              dosage: (m.dosage ?? "") as string,
+              frequency: (m.frequency ?? "") as string,
+              duration: (m.duration ?? "") as string,
+              instruction: (m.instruction ?? "") as string,
+              quantity: (m.quantity ?? "") as string,
+            }))
+            const existingNames = new Set(prev.medicines.map(m => m.medicineName.toLowerCase()));
+            const uniqueToAdd = newMedicines.filter(m => !existingNames.has(m.medicineName.toLowerCase()));
+            if (uniqueToAdd.length > 0) {
               updated.medicines = [...prev.medicines, ...uniqueToAdd]
-              if (uniqueToAdd.length > 0) newHighlighted.push("medicines")
+              newHighlighted.push("medicines")
             }
-            return
           }
+          return
+        }
 
-          if (typedKey === "complaints") {
-            if (Array.isArray(value) && value.length > 0) {
-              const newComplaints: ComplaintEntry[] = value.map((cmp, idx) => {
-                const c = cmp as Partial<ComplaintEntry>
-                return {
-                  id: `cmp-${Date.now()}-${idx}`,
-                  complaintName: (c.complaintName ?? "") as string,
-                  complaintFrequency: (c.complaintFrequency ?? null) as string | null,
-                  severity: (c.severity ?? null) as string | null,
-                  complaintDuration: (c.complaintDuration ?? null) as string | null,
-                }
-              })
-
-              const complaintKey = (c: ComplaintEntry) =>
-                `${c.complaintName}`.trim().toLowerCase() +
-                `|${c.complaintFrequency ?? ""}`.trim().toLowerCase() +
-                `|${c.severity ?? ""}`.trim().toLowerCase() +
-                `|${c.complaintDuration ?? ""}`.trim().toLowerCase()
-
-              const existingKeys = new Set(prev.complaints.map(complaintKey))
-              const uniqueToAdd = newComplaints.filter((c) => !existingKeys.has(complaintKey(c)))
-
+        // Complaints
+        if (typedKey === "complaints") {
+          if (Array.isArray(value) && value.length > 0) {
+            const newComplaints: ComplaintEntry[] = value.map((c, idx) => ({
+              id: `cmp-${Date.now()}-${idx}`,
+              complaintName: (c.complaintName ?? "") as string,
+              complaintFrequency: (c.complaintFrequency ?? null) as string | null,
+              severity: (c.severity ?? null) as string | null,
+              complaintDuration: (c.complaintDuration ?? null) as string | null,
+            }))
+            const existingNames = new Set(prev.complaints.map(c => c.complaintName.toLowerCase()));
+            const uniqueToAdd = newComplaints.filter(c => !existingNames.has(c.complaintName.toLowerCase()));
+            if (uniqueToAdd.length > 0) {
               updated.complaints = [...prev.complaints, ...uniqueToAdd]
-              if (uniqueToAdd.length > 0) newHighlighted.push("complaints")
+              newHighlighted.push("complaints")
             }
-            return
           }
+          return
+        }
 
-          if (typedKey === "diagnoses") {
-            if (Array.isArray(value) && value.length > 0) {
-              const newDiagnoses: DiagnosisEntry[] = value.map((dx, idx) => {
-                const d = dx as Partial<DiagnosisEntry>
-                return {
-                  id: `dx-${Date.now()}-${idx}`,
-                  diagnosisName: (d.diagnosisName ?? "") as string,
-                  diagnosisCode: (d.diagnosisCode ?? null) as string | null,
-                  diagnosisDuration: (d.diagnosisDuration ?? null) as string | null,
-                }
-              })
-
-              const diagnosisKey = (d: DiagnosisEntry) =>
-                `${d.diagnosisName}`.trim().toLowerCase() +
-                `|${d.diagnosisCode ?? ""}`.trim().toLowerCase() +
-                `|${d.diagnosisDuration ?? ""}`.trim().toLowerCase()
-
-              const existingKeys = new Set(prev.diagnoses.map(diagnosisKey))
-              const uniqueToAdd = newDiagnoses.filter((d) => !existingKeys.has(diagnosisKey(d)))
-
+        // Diagnoses
+        if (typedKey === "diagnoses") {
+          if (Array.isArray(value) && value.length > 0) {
+            const newDiagnoses: DiagnosisEntry[] = value.map((d, idx) => ({
+              id: `dx-${Date.now()}-${idx}`,
+              diagnosisName: (d.diagnosisName ?? "") as string,
+              diagnosisCode: (d.diagnosisCode ?? null) as string | null,
+              diagnosisDuration: (d.diagnosisDuration ?? null) as string | null,
+            }))
+            const existingNames = new Set(prev.diagnoses.map(d => d.diagnosisName.toLowerCase()));
+            const uniqueToAdd = newDiagnoses.filter(d => !existingNames.has(d.diagnosisName.toLowerCase()));
+            if (uniqueToAdd.length > 0) {
               updated.diagnoses = [...prev.diagnoses, ...uniqueToAdd]
-              if (uniqueToAdd.length > 0) newHighlighted.push("diagnoses")
+              newHighlighted.push("diagnoses")
             }
-            return
           }
+          return
+        }
 
-          if (value !== null && value !== undefined) {
-            const updatedRecord = updated as unknown as Record<string, unknown>
-            updatedRecord[typedKey as string] = value
+        // General Examinations
+        if (typedKey === "generalExaminations") {
+          if (Array.isArray(value) && value.length > 0) {
+            const newItems: GeneralExaminationEntry[] = value.map((i, idx) => ({
+              id: `ge-${Date.now()}-${idx}`,
+              finding: (i.finding ?? "") as string,
+              status: (i.status ?? "") as string,
+              severity: (i.severity ?? "") as string,
+              notes: (i.notes ?? "") as string,
+            }))
+            const existingNames = new Set(prev.generalExaminations.map(x => x.finding.toLowerCase()));
+            const uniqueToAdd = newItems.filter(x => !existingNames.has(x.finding.toLowerCase()));
+            if (uniqueToAdd.length > 0) {
+              updated.generalExaminations = [...prev.generalExaminations, ...uniqueToAdd]
+              newHighlighted.push("generalExaminations")
+            }
+          }
+          return
+        }
+
+        // Past Medical Histories
+        if (typedKey === "pastMedicalHistories") {
+          if (Array.isArray(value) && value.length > 0) {
+            const newItems: PastMedicalHistoryEntry[] = value.map((i, idx) => ({
+              id: `pmh-${Date.now()}-${idx}`,
+              disease: (i.disease ?? "") as string,
+              duration: (i.duration ?? "") as string,
+              status: (i.status ?? "") as string,
+              notes: (i.notes ?? "") as string,
+            }))
+            const existingNames = new Set(prev.pastMedicalHistories.map(x => x.disease.toLowerCase()));
+            const uniqueToAdd = newItems.filter(x => !existingNames.has(x.disease.toLowerCase()));
+            if (uniqueToAdd.length > 0) {
+              updated.pastMedicalHistories = [...prev.pastMedicalHistories, ...uniqueToAdd]
+              newHighlighted.push("pastMedicalHistories")
+            }
+          }
+          return
+        }
+
+        // Investigations
+        if (typedKey === "investigations") {
+          if (Array.isArray(value) && value.length > 0) {
+            const newItems: InvestigationEntry[] = value.map((i, idx) => ({
+              id: `inv-${Date.now()}-${idx}`,
+              test: (i.test ?? "") as string,
+              value: (i.value ?? "") as string,
+              notes: (i.notes ?? "") as string,
+            }))
+            const existingNames = new Set(prev.investigations.map(x => x.test.toLowerCase()));
+            const uniqueToAdd = newItems.filter(x => !existingNames.has(x.test.toLowerCase()));
+            if (uniqueToAdd.length > 0) {
+              updated.investigations = [...prev.investigations, ...uniqueToAdd]
+              newHighlighted.push("investigations")
+            }
+          }
+          return
+        }
+
+        // Tests Requested
+        if (typedKey === "testsRequested") {
+          if (Array.isArray(value) && value.length > 0) {
+            const newItems: TestRequestedEntry[] = value.map((i, idx) => ({
+              id: `test-${Date.now()}-${idx}`,
+              name: (i.name ?? "") as string,
+              notes: (i.notes ?? "") as string,
+            }))
+            const existingNames = new Set(prev.testsRequested.map(x => x.name.toLowerCase()));
+            const uniqueToAdd = newItems.filter(x => !existingNames.has(x.name.toLowerCase()));
+            if (uniqueToAdd.length > 0) {
+              updated.testsRequested = [...prev.testsRequested, ...uniqueToAdd]
+              newHighlighted.push("testsRequested")
+            }
+          }
+          return
+        }
+
+        // Handle primitive fields (only override if AI found something new and current is empty, or if explicitly requested)
+        if (value !== null && value !== undefined && value !== "") {
+          const currentVal = prev[typedKey];
+          // Only update if current is empty to preserve doctor's manual edits, 
+          // or if the value is meaningfully different.
+          if (!currentVal || currentVal === "") {
+            (updated as any)[typedKey] = value;
             newHighlighted.push(typedKey as string)
           }
-        })
-
-        return updated
+        }
       })
 
+      return updated
+    })
+
+    if (newHighlighted.length > 0) {
       setHighlightedFields(newHighlighted)
-      setFocusedField(null)
-
-      if (reply) {
-        speak(reply)
-      }
-
-      setTimeout(() => {
-        setHighlightedFields([])
-      }, 2000)
-    } catch (err) {
-      console.error("Failed to process speech:", err)
-    } finally {
-      setIsLoading(false)
+      setTimeout(() => setHighlightedFields([]), 2000)
     }
-  }, [speak, setPatientData])
+    setAssistantState(isListening ? "listening" : "idle")
+  }
 
-  const handleStopListening = useCallback(() => {
-    stopListening()
-    if (transcript.trim() && !hasProcessedCurrentTranscriptRef.current) {
-      processTranscript(transcript)
-      hasProcessedCurrentTranscriptRef.current = true
-    }
-  }, [stopListening, transcript, processTranscript])
-
-  const handleMicToggleForField = useCallback(
-    (fieldName: string) => {
-      if (isListening && activeVoiceField === fieldName) {
-        handleStopListening()
-        setActiveVoiceField(null)
-      } else {
-        if (isListening) {
-          handleStopListening()
-        }
-        setActiveVoiceField(fieldName)
-        setFocusedField(fieldName)
-        resetTranscript()
-        hasProcessedCurrentTranscriptRef.current = false
-
-        setTimeout(() => {
-          const element = fieldRefs.current.get(fieldName)
-          if (element) {
-            element.focus()
-            element.scrollIntoView({ behavior: "smooth", block: "center" })
-          }
-          startListening()
-          handleUserStartedSpeaking()
-        }, 100)
-      }
-    },
-    [isListening, activeVoiceField, handleStopListening, resetTranscript, startListening, handleUserStartedSpeaking]
-  )
-
+  // --- Interval Orchestrator ---
   useEffect(() => {
-    if (!isListening && activeVoiceField) {
-      if (transcript.trim() && !hasProcessedCurrentTranscriptRef.current) {
-        if (processDebounceTimerRef.current) {
-          clearTimeout(processDebounceTimerRef.current)
-        }
-        processDebounceTimerRef.current = setTimeout(() => {
-          processTranscript(transcript)
-          hasProcessedCurrentTranscriptRef.current = true
-        }, 1000)
+    let transcribeInterval: NodeJS.Timeout;
+    let extractInterval: NodeJS.Timeout;
+
+    if (isListening) {
+      setAssistantState("listening");
+      // Ping transcription every 3500ms (to stay within Groq 20 RPM limit)
+      transcribeInterval = setInterval(() => {
+        fetchTranscription();
+      }, 3500);
+
+      // Ping extraction every 5000ms using the latest transcript
+      extractInterval = setInterval(() => {
+        runExtraction(transcriptRef.current);
+      }, 5000);
+    } else {
+      // When stopped, perform one final extraction to ensure completion
+      if (transcriptRef.current !== lastExtractedTranscriptRef.current) {
+        runExtraction(transcriptRef.current);
       } else {
-        setActiveVoiceField(null)
-        setFocusedField(null)
+        setAssistantState("idle");
       }
     }
 
     return () => {
-      if (processDebounceTimerRef.current) {
-        clearTimeout(processDebounceTimerRef.current)
-        processDebounceTimerRef.current = null
-      }
-    }
-  }, [transcript, isListening, activeVoiceField, processTranscript])
+      clearInterval(transcribeInterval);
+      clearInterval(extractInterval);
+    };
+  }, [isListening, fetchTranscription, runExtraction]);
 
-  const assistantState = isAvatarSpeaking
-    ? "speaking"
-    : isLoading
-      ? "thinking"
-      : isListening
-        ? "listening"
-        : "idle"
+  const handleStopListening = useCallback(() => {
+    stopRecording()
+    setActiveVoiceContext({ mode: "GLOBAL" })
+  }, [stopRecording])
+
+  const handleMicToggle = useCallback(
+    (context: VoiceContext) => {
+      // If clicking the same mic while listening, stop it.
+      if (isListening && activeVoiceContext.mode === context.mode && activeVoiceContext.field === context.field && activeVoiceContext.component === context.component) {
+        handleStopListening()
+      } else {
+        setActiveVoiceContext(context)
+        setTranscript("")
+        setExtractedPreview(null)
+        lastExtractedTranscriptRef.current = ""
+
+        setTimeout(() => {
+          if (context.field) {
+            const element = fieldRefs.current.get(context.field)
+            if (element) {
+              element.focus()
+              element.scrollIntoView({ behavior: "smooth", block: "center" })
+            }
+          }
+          startRecording()
+          handleUserStartedSpeaking()
+        }, 100)
+      }
+    },
+    [isListening, activeVoiceContext, handleStopListening, startRecording, handleUserStartedSpeaking]
+  )
+
+  const resetTranscript = useCallback(() => {
+    setTranscript("")
+    setExtractedPreview(null)
+  }, [])
 
   return {
     transcript,
     isListening,
     isSupported,
-    error,
-    isLoading,
+    error: recorderError,
+    isLoading: assistantState !== "idle" && assistantState !== "listening",
     assistantState,
     highlightedFields,
-    activeVoiceField,
-    focusedField,
+    activeVoiceContext,
+    extractedPreview,
     registerFieldRef,
-    handleMicToggleForField,
+    handleMicToggle,
     resetTranscript,
     speak,
-    startListening,
-    stopListening,
+    startListening: () => handleMicToggle({ mode: "GLOBAL" }),
+    stopListening: handleStopListening,
     isAvatarSpeaking
   }
 }

@@ -88,11 +88,6 @@ export function PatientInfoCard({ patientData, prescriptionHistoryLength }: Pati
           </div>
 
           <div className="space-y-1">
-            {patientData.bloodGroup && (
-              <Badge variant="secondary" className="text-xs">
-                Blood Group: {patientData.bloodGroup}
-              </Badge>
-            )}
             {patientData.oxygenSaturation && (
               <div className="flex items-center gap-2 text-sm">
                 <Activity className="h-4 w-4 text-muted-foreground" />

@@ -29,7 +29,7 @@ import { toast } from "sonner";
 import { PatientData, emptyPatientData } from "@/types/patient";
 import { getAuthState } from "@/lib/auth";
 import { PatientService, RegistrationService } from "@/lib/services";
-import { BackendPatient } from "@/types/backend";
+import { PatientResponse } from "@/types/backend";
 
 interface PatientRegistrationModalProps {
   onPatientRegistered: (patient: PatientData) => void;
@@ -46,8 +46,8 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
   const [isRegistering, setIsRegistering] = useState(false);
 
   // Existing Patient Search State
-  const [existingPatients, setExistingPatients] = useState<BackendPatient[]>([]);
-  const [selectedPatient, setSelectedPatient] = useState<BackendPatient | null>(null);
+  const [existingPatients, setExistingPatients] = useState<PatientResponse[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<PatientResponse | null>(null);
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
 
@@ -98,7 +98,6 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
       "pulse",
       "temperature",
       "oxygenSaturation",
-      "bloodGroup",
       "visitDate",
       "contactNumber",
       "dateOfBirth",
@@ -130,7 +129,6 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
           "pulse",
           "temperature",
           "oxygenSaturation",
-          "bloodGroup",
           "contactNumber",
           "visitDate",
         ];
@@ -376,7 +374,6 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
         age: finalPatientDetails.age,
         gender: finalPatientDetails.gender,
         contactNumber: finalPatientDetails.contactNumber,
-        bloodGroup: registrationForm.bloodGroup,
         // Prefilled vitals for doctor consultation
         weight: registrationForm.weight,
         height: registrationForm.height,
@@ -450,7 +447,7 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
           Register Patient
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
@@ -511,7 +508,7 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
                   <User className="h-4 w-4" />
                   Basic Information
                 </h3>
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
                     <label className="text-sm text-muted-foreground">Name *</label>
                     <Input
@@ -550,7 +547,7 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
                     <label className="text-sm text-muted-foreground">Gender *</label>
                     <Select
@@ -578,27 +575,6 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
                       placeholder="Phone Number (10 digit)"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm text-muted-foreground">Blood Group</label>
-                    <Select
-                      value={registrationForm.bloodGroup ?? ""}
-                      onValueChange={(v) => setRegistrationForm((prev) => ({ ...prev, bloodGroup: v || null }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select blood group" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="A+">A+</SelectItem>
-                        <SelectItem value="A-">A-</SelectItem>
-                        <SelectItem value="B+">B+</SelectItem>
-                        <SelectItem value="B-">B-</SelectItem>
-                        <SelectItem value="O+">O+</SelectItem>
-                        <SelectItem value="O-">O-</SelectItem>
-                        <SelectItem value="AB+">AB+</SelectItem>
-                        <SelectItem value="AB-">AB-</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
 
                 {/* Address */}
@@ -609,7 +585,7 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
                     </span>
                     Address
                   </h3>
-                  <div className="grid gap-4 md:grid-cols-3">
+                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="space-y-2">
                       <label className="text-sm text-muted-foreground">State</label>
                       <Input
@@ -694,11 +670,7 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
                               onClick={() => {
                                 setSelectedPatient(p);
                                 setPatientSearchQuery("");
-                                // Sync values for vitals prefill logic if needed
-                                setRegistrationForm(prev => ({
-                                  ...prev,
-                                  bloodGroup: p.bloodGroup || null
-                                }));
+                                // Note: bloodGroup not supported in backend
                               }}
                               className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0 text-sm flex items-center justify-between"
                             >
@@ -733,10 +705,6 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
                       size="sm"
                       onClick={() => {
                         setSelectedPatient(null);
-                        setRegistrationForm(prev => ({
-                          ...prev,
-                          bloodGroup: null
-                        }));
                       }}
                     >
                       Change Patient
@@ -744,28 +712,7 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
                   </div>
                 )}
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-sm text-muted-foreground">Blood Group (Optional)</label>
-                    <Select
-                      value={registrationForm.bloodGroup ?? ""}
-                      onValueChange={(v) => setRegistrationForm((prev) => ({ ...prev, bloodGroup: v || null }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select blood group" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="A+">A+</SelectItem>
-                        <SelectItem value="A-">A-</SelectItem>
-                        <SelectItem value="B+">B+</SelectItem>
-                        <SelectItem value="B-">B-</SelectItem>
-                        <SelectItem value="O+">O+</SelectItem>
-                        <SelectItem value="O-">O-</SelectItem>
-                        <SelectItem value="AB+">AB+</SelectItem>
-                        <SelectItem value="AB-">AB-</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <div className="space-y-2">
                     <label className="text-sm text-muted-foreground">Visit Date</label>
                     <Input
@@ -781,112 +728,6 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
             </TabsContent>
           </Tabs>
 
-          {/* Vitals Form Section (Shared for both tabs) */}
-          <div className="space-y-4 border-t pt-4">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" />
-              Vitals
-            </h3>
-            <div className="grid gap-4 md:grid-cols-4">
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">Weight (kg)</label>
-                <Input
-                  id="reg-weight"
-                  type="number"
-                  value={registrationForm.weight ?? ""}
-                  onChange={(e) =>
-                    setRegistrationForm((prev) => ({
-                      ...prev,
-                      weight: e.target.value ? Number(e.target.value) : null,
-                    }))
-                  }
-                  placeholder="Weight"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">Height (cm)</label>
-                <Input
-                  id="reg-height"
-                  type="number"
-                  value={registrationForm.height ?? ""}
-                  onChange={(e) =>
-                    setRegistrationForm((prev) => ({
-                      ...prev,
-                      height: e.target.value ? Number(e.target.value) : null,
-                    }))
-                  }
-                  placeholder="Height"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">BP (Systolic/Diastolic)</label>
-                <Input
-                  placeholder="120/80"
-                  value={
-                    registrationForm.bloodPressureSystolic && registrationForm.bloodPressureDiastolic
-                      ? `${registrationForm.bloodPressureSystolic}/${registrationForm.bloodPressureDiastolic}`
-                      : ""
-                  }
-                  onChange={(e) => {
-                    const match = e.target.value.match(/(\d+)\s*[/\-]\s*(\d+)/);
-                    if (match) {
-                      setRegistrationForm((prev) => ({
-                        ...prev,
-                        bloodPressureSystolic: parseInt(match[1]),
-                        bloodPressureDiastolic: parseInt(match[2]),
-                      }));
-                    }
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">Pulse (bpm)</label>
-                <Input
-                  type="number"
-                  value={registrationForm.pulse ?? ""}
-                  onChange={(e) =>
-                    setRegistrationForm((prev) => ({
-                      ...prev,
-                      pulse: e.target.value ? Number(e.target.value) : null,
-                    }))
-                  }
-                  placeholder="Pulse"
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">Temperature (°F)</label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={registrationForm.temperature ?? ""}
-                  onChange={(e) =>
-                    setRegistrationForm((prev) => ({
-                      ...prev,
-                      temperature: e.target.value ? Number(e.target.value) : null,
-                    }))
-                  }
-                  placeholder="98.6"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">SpO2 (%)</label>
-                <Input
-                  type="number"
-                  value={registrationForm.oxygenSaturation ?? ""}
-                  onChange={(e) =>
-                    setRegistrationForm((prev) => ({
-                      ...prev,
-                      oxygenSaturation: e.target.value ? Number(e.target.value) : null,
-                    }))
-                  }
-                  placeholder="98"
-                />
-              </div>
-            </div>
-          </div>
 
           {/* Form Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t">

@@ -12,7 +12,8 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { PatientData } from "../patient-form";
+import { PatientData } from "../patient-form-fields/types";
+import { VoiceContext } from "@/hooks/useConsultationVoice";
 
 type Props = {
   data: PatientData;
@@ -26,14 +27,12 @@ type Props = {
   sectionPulseClass?: (field: keyof PatientData) => string;
 
   wrapWithMic?: (
-    field: keyof PatientData,
+    context: VoiceContext,
     node: ReactElement
   ) => ReactElement | null;
 
   registerFieldRef?: (fieldName: string, element: HTMLElement | null) => void;
 };
-
-const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 // Parse a "YYYY-MM-DD" string as local midnight (avoids UTC-off-by-one)
 function parseLocalDate(dateStr: string): Date {
@@ -76,8 +75,13 @@ export default function VitalsPage({
     >
       <CardHeader className="pb-3 pt-5 px-5 border-b border-slate-50 mb-3">
         <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-          <Activity className="h-4 w-4 text-slate-500" />
-          Vitals Entry
+          {wrapWithMic(
+            { mode: "COMPONENT", component: "Vitals" },
+            <div className="flex items-center gap-2 cursor-pointer">
+              <Activity className="h-4 w-4 text-slate-500" />
+              Vitals Entry
+            </div>
+          )}
         </CardTitle>
       </CardHeader>
 
@@ -89,7 +93,7 @@ export default function VitalsPage({
             <Label className="text-xs font-medium text-slate-700">Blood Pressure (mmHg)</Label>
             <div className="flex items-center gap-2">
               {wrapWithMic(
-                "bloodPressureSystolic",
+                { mode: "FIELD", field: "bloodPressureSystolic", component: "Vitals" },
                 <Input
                   ref={(el) => { if (el && registerFieldRef) registerFieldRef("bloodPressureSystolic", el); }}
                   type="number"
@@ -108,7 +112,7 @@ export default function VitalsPage({
               )}
               <span className="text-slate-400 font-medium">/</span>
               {wrapWithMic(
-                "bloodPressureDiastolic",
+                { mode: "FIELD", field: "bloodPressureDiastolic", component: "Vitals" },
                 <Input
                   ref={(el) => { if (el && registerFieldRef) registerFieldRef("bloodPressureDiastolic", el); }}
                   type="number"
@@ -134,7 +138,7 @@ export default function VitalsPage({
             <Label className="text-xs font-medium text-slate-700">Pulse</Label>
             <div className="relative">
               {wrapWithMic(
-                "pulse",
+                { mode: "FIELD", field: "pulse", component: "Vitals" },
                 <Input
                   ref={(el) => { if (el && registerFieldRef) registerFieldRef("pulse", el); }}
                   type="number"
@@ -160,7 +164,7 @@ export default function VitalsPage({
             <Label className="text-xs font-medium text-slate-700">SpO2</Label>
             <div className="relative">
               {wrapWithMic(
-                "oxygenSaturation",
+                { mode: "FIELD", field: "oxygenSaturation", component: "Vitals" },
                 <Input
                   ref={(el) => { if (el && registerFieldRef) registerFieldRef("oxygenSaturation", el); }}
                   type="number"
@@ -186,7 +190,7 @@ export default function VitalsPage({
             <Label className="text-xs font-medium text-slate-700">Temperature</Label>
             <div className="relative">
               {wrapWithMic(
-                "temperature",
+                { mode: "FIELD", field: "temperature", component: "Vitals" },
                 <Input
                   ref={(el) => { if (el && registerFieldRef) registerFieldRef("temperature", el); }}
                   type="number"
@@ -214,7 +218,7 @@ export default function VitalsPage({
               <div>
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold mb-0.5">Height (cm)</span>
                 {wrapWithMic(
-                  "height",
+                  { mode: "FIELD", field: "height", component: "Vitals" },
                   <Input
                     ref={(el) => { if (el && registerFieldRef) registerFieldRef("height", el); }}
                     type="number"
@@ -232,7 +236,7 @@ export default function VitalsPage({
               <div>
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold mb-0.5">Weight (kg)</span>
                 {wrapWithMic(
-                  "weight",
+                  { mode: "FIELD", field: "weight", component: "Vitals" },
                   <Input
                     ref={(el) => { if (el && registerFieldRef) registerFieldRef("weight", el); }}
                     type="number"
@@ -270,7 +274,7 @@ export default function VitalsPage({
             <Label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Resp. Rate</Label>
             <div className="relative">
               {wrapWithMic(
-                "respiratoryRate",
+                { mode: "FIELD", field: "respiratoryRate", component: "Vitals" },
                 <Input
                   ref={(el) => { if (el && registerFieldRef) registerFieldRef("respiratoryRate", el); }}
                   type="number"
@@ -290,28 +294,7 @@ export default function VitalsPage({
             </div>
           </div>
 
-          {/* Blood Group */}
-          <div className="space-y-1.5 col-span-2 sm:col-span-1">
-            <Label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Blood Group</Label>
-            <Select
-              value={data.bloodGroup ?? ""}
-              onValueChange={(value) => updateField("bloodGroup", value || null)}
-            >
-              <SelectTrigger
-                ref={(el) => { if (el && registerFieldRef) registerFieldRef("bloodGroup", el); }}
-                className={`w-full text-sm focus-visible:ring-sky-500 rounded-lg bg-slate-50 ${inputClass("bloodGroup")}`}
-              >
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                {bloodGroups.map((bg) => (
-                  <SelectItem key={bg} value={bg}>
-                    {bg}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+
 
           {/* LMP Date */}
           <div className="space-y-1.5 col-span-2 sm:col-span-1">

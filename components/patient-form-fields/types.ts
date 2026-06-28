@@ -26,28 +26,33 @@ export interface DiagnosisEntry {
 
 export interface GeneralExaminationEntry {
   id: string
-  examinationName: string
+  finding: string
+  status: string
+  severity?: string
+  notes?: string
 }
 
 export interface PastMedicalHistoryEntry {
   id: string
-  allergies: string | null
-  currentMedicine: string | null
-  medicalHistory: string | null
+  disease: string
+  duration: string
+  status: string
+  notes?: string
 }
 
 export interface InvestigationEntry {
   id: string
-  investigationName: string
-  notes: string | null
-  documentUrl: string | null   // uploaded document URL for this investigation
-  documentFileName: string | null  // uploaded file name for display
+  test: string
+  value: string
+  notes?: string
+  documentUrl?: string | null   // uploaded document URL for this investigation
+  documentFileName?: string | null  // uploaded file name for display
 }
 
 export interface TestRequestedEntry {
   id: string
-  testName: string
-  notes: string | null
+  name: string
+  notes?: string
 }
 
 export interface DocumentEntry {
@@ -71,7 +76,7 @@ export interface PatientData {
   temperature: number | null
   oxygenSaturation: number | null
   respiratoryRate?: number | null
-  bloodGroup: string | null
+
   lmp: string | null
   visitDate: string | null
 
@@ -102,3 +107,44 @@ export interface PatientData {
   medicines: MedicineEntry[]
   documents: DocumentEntry[]
 }
+
+export const emptyPatientData: PatientData = {
+  registrationId: null,
+  registrationNumber: null,
+  patientId: null,
+  name: null,
+  age: null,
+  gender: null,
+  weight: null,
+  height: null,
+  bloodPressureSystolic: null,
+  bloodPressureDiastolic: null,
+  pulse: null,
+  temperature: null,
+  oxygenSaturation: null,
+  respiratoryRate: null,
+
+  lmp: null,
+  visitDate: null,
+  allergies: null,
+  currentMedications: null,
+  chiefComplaint: null,
+  symptoms: null,
+  medicalHistory: null,
+  quickNotes: null,
+  complaints: [{ id: "comp-new", complaintName: "", complaintFrequency: null, severity: null, complaintDuration: null }],
+  generalExaminations: [{ id: "ge-new", finding: "", status: "" }],
+  pastMedicalHistories: [{ id: "pmh-new", disease: "", duration: "", status: "" }],
+  diagnoses: [{ id: "diag-new", diagnosisName: "", diagnosisCode: null, diagnosisDuration: null }],
+  advice: null,
+  testsRequested: [{ id: "test-new", name: "" }],
+  nextVisit: null,
+  investigations: [{ id: "inv-new", test: "", value: "" }],
+  payment: null,
+  followUp: null,
+  contactNumber: null,
+  emergencyContact: null,
+  insuranceId: null,
+  medicines: [{ id: "med-new", medicineName: "", strength: "", dosage: "", frequency: "", duration: "", instruction: "", quantity: "" }],
+  documents: [],
+};

@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef, useCallback as useStableCallb
 import { Button } from "@/components/ui/button"
 import { PatientForm, PatientData, MedicineEntry, ComplaintEntry, DiagnosisEntry, GeneralExaminationEntry, PastMedicalHistoryEntry, InvestigationEntry, TestRequestedEntry, DocumentEntry } from "./patient-form"
 import { VoiceControl } from "./voice-control"
+import { VoiceContext } from "@/hooks/useConsultationVoice"
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
 import { Save, RotateCcw, CheckCircle } from "lucide-react"
 
@@ -18,7 +19,7 @@ const emptyPatientData: PatientData = {
   pulse: null,
   temperature: null,
   oxygenSaturation: null,
-  bloodGroup: null,
+
   lmp: null,
   visitDate: null,
 
@@ -54,7 +55,7 @@ export function PatientDashboard() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [highlightedFields, setHighlightedFields] = useState<string[]>([])
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle")
-  const [activeVoiceField, setActiveVoiceField] = useState<string | null>(null)
+  const [activeVoiceContext, setActiveVoiceContext] = useState<VoiceContext | null>(null)
   const [focusedField, setFocusedField] = useState<string | null>(null)
 
   // Store refs to all input elements by field name
@@ -306,22 +307,22 @@ export function PatientDashboard() {
 
   const handleStopListening = useCallback(() => {
     stopListening()
-    setActiveVoiceField(null)
+    setActiveVoiceContext(null)
   }, [stopListening])
 
-  const handleMicToggleForField = useCallback(
-    (fieldId: string) => {
+  const handleMicToggle = useCallback(
+    (context: VoiceContext) => {
       if (isProcessing || !isSupported) return
 
       // Stop if the same field is already active
-      if (isListening && activeVoiceField === fieldId) {
+      if (isListening && activeVoiceContext?.mode === context.mode && activeVoiceContext?.component === context.component && activeVoiceContext?.field === context.field) {
         stopListening()
-        setActiveVoiceField(null)
+        setActiveVoiceContext(null)
         return
       }
 
       // Start for this field
-      setActiveVoiceField(fieldId)
+      setActiveVoiceContext(context)
       resetTranscript()
       startListening()
     },
@@ -329,7 +330,7 @@ export function PatientDashboard() {
       isProcessing,
       isSupported,
       isListening,
-      activeVoiceField,
+      activeVoiceContext,
       stopListening,
       resetTranscript,
       startListening,
@@ -495,8 +496,8 @@ export function PatientDashboard() {
               isListening,
               isProcessing,
               isSupported,
-              activeVoiceField,
-              onMicToggle: handleMicToggleForField,
+              activeVoiceContext,
+              onMicToggle: handleMicToggle,
             }}
             registerFieldRef={registerFieldRef}
           />

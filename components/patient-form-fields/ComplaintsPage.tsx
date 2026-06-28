@@ -10,7 +10,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ClipboardList, Plus, Trash2 } from "lucide-react";
-import { PatientData, ComplaintEntry } from "../patient-form";
+import { PatientData, ComplaintEntry } from "../patient-form-fields/types";
+import { VoiceContext } from "@/hooks/useConsultationVoice";
 
 type Props = {
   data: PatientData;
@@ -27,7 +28,7 @@ type Props = {
   isHighlighted?: (field: string) => boolean;
 
   wrapWithMic?: (
-    fieldId: string,
+    context: VoiceContext,
     element: ReactElement<{ className?: string }>
   ) => JSX.Element;
 };
@@ -47,8 +48,13 @@ export default function ComplaintsPage({
       <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-3 px-4">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <ClipboardList className="h-4 w-4 text-slate-500" />
-            Chief Complaints
+            {wrapWithMic(
+              { mode: "COMPONENT", component: "Complaints" },
+              <div className="flex items-center gap-2 cursor-pointer">
+                <ClipboardList className="h-4 w-4 text-slate-500" />
+                Chief Complaints
+              </div>
+            )}
           </CardTitle>
 
           <Button
@@ -71,11 +77,11 @@ export default function ComplaintsPage({
             No complaints yet. Use voice or click "Add".
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <div className="min-w-[700px]">
+          <div className="w-full">
+            <div className="w-full">
 
               {/* Header Row */}
-              <div className="grid grid-cols-[40px_1.2fr_0.8fr_0.7fr_0.7fr_32px] items-center gap-2 rounded-md px-2 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+              <div className="hidden lg:grid grid-cols-[40px_1.2fr_0.8fr_0.7fr_0.7fr_32px] items-center gap-2 rounded-md px-2 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
                 <div>#</div>
                 <div>Complaint</div>
                 <div>Freq</div>
@@ -85,75 +91,93 @@ export default function ComplaintsPage({
               </div>
 
               {/* Rows */}
-              <div className="space-y-2 pt-1">
+              <div className="space-y-4 lg:space-y-2 pt-1">
                 {(data.complaints || []).map((c, index) => (
                   <div
                     key={c.id}
-                    className="grid grid-cols-[40px_1.2fr_0.8fr_0.7fr_0.7fr_32px] items-center gap-2 px-2"
+                    className="relative grid grid-cols-1 lg:grid-cols-[40px_1.2fr_0.8fr_0.7fr_0.7fr_32px] items-start gap-3 lg:gap-2 p-3 lg:p-0 lg:px-2 border lg:border-none border-slate-100 rounded-lg bg-slate-50/50 lg:bg-transparent"
                   >
                     {/* Index */}
-                    <div className="text-center text-[11px] font-medium text-slate-400">
+                    <div className="hidden lg:block pt-2 text-center text-[11px] font-medium text-slate-400">
                       {index + 1}
                     </div>
 
+                    <div className="lg:hidden flex items-center gap-2 mb-1">
+                      <span className="text-xs font-semibold text-slate-700">Complaint #{index + 1}</span>
+                    </div>
+
                     {/* Complaint Name */}
-                    {wrapWithMic(
-                      `complaints.${c.id}.complaintName`,
-                      <Input
-                        value={c.complaintName}
-                        onChange={(e) =>
-                          updateComplaint(c.id, "complaintName", e.target.value)
-                        }
-                        placeholder="cough"
-                        className={`h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500 ${
-                          isHighlighted("complaints")
-                            ? "ring-2 ring-sky-500 bg-sky-50"
-                            : ""
-                        }`}
-                      />
-                    )}
+                    <div className="flex flex-col gap-1 lg:block lg:gap-0">
+                      <label className="lg:hidden text-[10px] uppercase text-slate-500 font-semibold">Complaint</label>
+                      {wrapWithMic(
+                        { mode: "FIELD", field: `complaints.${c.id}.complaintName` },
+                        <Input
+                          value={c.complaintName}
+                          onChange={(e) =>
+                            updateComplaint(c.id, "complaintName", e.target.value)
+                          }
+                          placeholder="cough"
+                          className={`h-8 text-sm lg:text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500 ${
+                            isHighlighted("complaints")
+                              ? "ring-2 ring-sky-500 bg-sky-50"
+                              : ""
+                          }`}
+                        />
+                      )}
+                    </div>
 
-                    {/* Frequency */}
-                    {wrapWithMic(
-                      `complaints.${c.id}.complaintFrequency`,
-                      <Input
-                        value={c.complaintFrequency ?? ""}
-                        onChange={(e) =>
-                          updateComplaint(c.id, "complaintFrequency", e.target.value)
-                        }
-                        placeholder="3d"
-                        className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
-                      />
-                    )}
+                    <div className="grid grid-cols-3 gap-3 lg:contents">
+                      {/* Frequency */}
+                      <div className="flex flex-col gap-1 lg:block lg:gap-0">
+                        <label className="lg:hidden text-[10px] uppercase text-slate-500 font-semibold">Freq</label>
+                        {wrapWithMic(
+                          { mode: "FIELD", field: `complaints.${c.id}.complaintFrequency` },
+                          <Input
+                            value={c.complaintFrequency ?? ""}
+                            onChange={(e) =>
+                              updateComplaint(c.id, "complaintFrequency", e.target.value)
+                            }
+                            placeholder="3d"
+                            className="h-8 text-sm lg:text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
+                          />
+                        )}
+                      </div>
 
-                    {/* Severity */}
-                    {wrapWithMic(
-                      `complaints.${c.id}.severity`,
-                      <Input
-                        value={c.severity ?? ""}
-                        onChange={(e) =>
-                          updateComplaint(c.id, "severity", e.target.value)
-                        }
-                        placeholder="mild"
-                        className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
-                      />
-                    )}
+                      {/* Severity */}
+                      <div className="flex flex-col gap-1 lg:block lg:gap-0">
+                        <label className="lg:hidden text-[10px] uppercase text-slate-500 font-semibold">Severity</label>
+                        {wrapWithMic(
+                          { mode: "FIELD", field: `complaints.${c.id}.severity` },
+                          <Input
+                            value={c.severity ?? ""}
+                            onChange={(e) =>
+                              updateComplaint(c.id, "severity", e.target.value)
+                            }
+                            placeholder="mild"
+                            className="h-8 text-sm lg:text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
+                          />
+                        )}
+                      </div>
 
-                    {/* Duration */}
-                    {wrapWithMic(
-                      `complaints.${c.id}.complaintDuration`,
-                      <Input
-                        value={c.complaintDuration ?? ""}
-                        onChange={(e) =>
-                          updateComplaint(c.id, "complaintDuration", e.target.value)
-                        }
-                        placeholder="1w"
-                        className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
-                      />
-                    )}
+                      {/* Duration */}
+                      <div className="flex flex-col gap-1 lg:block lg:gap-0">
+                        <label className="lg:hidden text-[10px] uppercase text-slate-500 font-semibold">Duration</label>
+                        {wrapWithMic(
+                          { mode: "FIELD", field: `complaints.${c.id}.complaintDuration` },
+                          <Input
+                            value={c.complaintDuration ?? ""}
+                            onChange={(e) =>
+                              updateComplaint(c.id, "complaintDuration", e.target.value)
+                            }
+                            placeholder="1w"
+                            className="h-8 text-sm lg:text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
+                          />
+                        )}
+                      </div>
+                    </div>
 
                     {/* Delete */}
-                    <div className="flex justify-end">
+                    <div className="absolute top-2 right-2 lg:static lg:flex lg:justify-end lg:pt-1 z-10">
                       <Button
                         type="button"
                         size="sm"

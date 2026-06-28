@@ -10,11 +10,13 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, User, Phone, Calendar, Stethoscope, Eye } from "lucide-react";
 import { PatientData } from "../types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface PatientTableProps {
   patients: PatientData[];
   searchQuery: string;
   genderFilter: string;
+  isLoading?: boolean;
   onConsult: (patient: PatientData) => void;
   onProfile: (patient: PatientData) => void;
 }
@@ -23,6 +25,7 @@ export default function PatientTable({
   patients,
   searchQuery,
   genderFilter,
+  isLoading = false,
   onConsult,
   onProfile,
 }: PatientTableProps) {
@@ -42,7 +45,21 @@ export default function PatientTable({
   return (
     <Card>
       <CardContent className="p-0">
-        {filteredPatients.length === 0 ? (
+        {isLoading ? (
+          <div className="p-6 space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center space-x-4">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-[250px]" />
+                  <Skeleton className="h-4 w-[200px]" />
+                </div>
+                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-8 w-24" />
+              </div>
+            ))}
+          </div>
+        ) : filteredPatients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Users className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold">No patients found</h3>
@@ -63,7 +80,7 @@ export default function PatientTable({
                   <TableHead>Age</TableHead>
                   <TableHead>Gender</TableHead>
                   <TableHead>Contact</TableHead>
-                  <TableHead>Blood Group</TableHead>
+
                   <TableHead>Last Visit</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -96,11 +113,6 @@ export default function PatientTable({
                         <Phone className="h-3 w-3 text-muted-foreground" />
                         {patient.contactNumber || "N/A"}
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
-                        {patient.bloodGroup || "N/A"}
-                      </span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1 text-sm">

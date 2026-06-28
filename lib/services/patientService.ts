@@ -1,11 +1,11 @@
 import { apiRequest } from '../api';
-import { BackendPatient } from '../../types/backend';
+import { PatientRequest, PatientResponse } from '../../types/backend';
 
 export const PatientService = {
   /**
    * Create a new patient
    */
-  createPatient: async (patientData: BackendPatient): Promise<BackendPatient> => {
+  createPatient: async (patientData: PatientRequest): Promise<PatientResponse> => {
     return await apiRequest('/api/patients', {
       method: 'POST',
       body: JSON.stringify(patientData),
@@ -15,7 +15,7 @@ export const PatientService = {
   /**
    * Get a patient by ID
    */
-  getPatientById: async (patientId: number): Promise<BackendPatient> => {
+  getPatientById: async (patientId: number): Promise<PatientResponse> => {
     return await apiRequest(`/api/patients/${patientId}`, {
       method: 'GET',
     });
@@ -24,7 +24,7 @@ export const PatientService = {
   /**
    * Get all patients
    */
-  getAllPatients: async (): Promise<BackendPatient[]> => {
+  getAllPatients: async (): Promise<PatientResponse[]> => {
     return await apiRequest('/api/patients', {
       method: 'GET',
     });
@@ -33,7 +33,7 @@ export const PatientService = {
   /**
    * Update an existing patient
    */
-  updatePatient: async (patientId: number, patientData: BackendPatient): Promise<BackendPatient> => {
+  updatePatient: async (patientId: number, patientData: PatientRequest): Promise<PatientResponse> => {
     return await apiRequest(`/api/patients/${patientId}`, {
       method: 'PUT',
       body: JSON.stringify(patientData),

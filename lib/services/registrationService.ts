@@ -1,11 +1,11 @@
 import { apiRequest } from '../api';
-import { BackendPatientRegistration } from '../../types/backend';
+import { PatientRegistrationRequest, PatientRegistrationResponse } from '../../types/backend';
 
 export const RegistrationService = {
   /**
    * Create a new patient registration
    */
-  createRegistration: async (registrationData: Partial<BackendPatientRegistration>): Promise<BackendPatientRegistration> => {
+  createRegistration: async (registrationData: Partial<PatientRegistrationRequest>): Promise<PatientRegistrationResponse> => {
     return await apiRequest('/api/patient-registrations', {
       method: 'POST',
       body: JSON.stringify(registrationData),
@@ -15,7 +15,7 @@ export const RegistrationService = {
   /**
    * Get registration by ID
    */
-  getRegistrationById: async (registrationId: number): Promise<BackendPatientRegistration> => {
+  getRegistrationById: async (registrationId: number): Promise<PatientRegistrationResponse> => {
     return await apiRequest(`/api/patient-registrations/${registrationId}`, {
       method: 'GET',
     });
@@ -24,7 +24,7 @@ export const RegistrationService = {
   /**
    * Get all registrations
    */
-  getAllRegistrations: async (): Promise<BackendPatientRegistration[]> => {
+  getAllRegistrations: async (): Promise<PatientRegistrationResponse[]> => {
     return await apiRequest('/api/patient-registrations', {
       method: 'GET',
     });
@@ -33,7 +33,7 @@ export const RegistrationService = {
   /**
    * Get registrations by clinic ID
    */
-  getRegistrationsByClinic: async (clinicId: number): Promise<BackendPatientRegistration[]> => {
+  getRegistrationsByClinic: async (clinicId: number): Promise<PatientRegistrationResponse[]> => {
     return await apiRequest(`/api/patient-registrations/clinic/${clinicId}`, {
       method: 'GET',
     });
@@ -42,7 +42,7 @@ export const RegistrationService = {
   /**
    * Get registrations by hospital ID
    */
-  getRegistrationsByHospital: async (hospitalId: number): Promise<BackendPatientRegistration[]> => {
+  getRegistrationsByHospital: async (hospitalId: number): Promise<PatientRegistrationResponse[]> => {
     return await apiRequest(`/api/patient-registrations/hospital/${hospitalId}`, {
       method: 'GET',
     });
@@ -51,7 +51,7 @@ export const RegistrationService = {
   /**
    * Update an existing registration
    */
-  updateRegistration: async (registrationId: number, registrationData: Partial<BackendPatientRegistration>): Promise<BackendPatientRegistration> => {
+  updateRegistration: async (registrationId: number, registrationData: Partial<PatientRegistrationRequest>): Promise<PatientRegistrationResponse> => {
     return await apiRequest(`/api/patient-registrations/${registrationId}`, {
       method: 'PUT',
       body: JSON.stringify(registrationData),

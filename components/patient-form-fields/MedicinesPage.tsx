@@ -11,7 +11,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Database, Pill, Plus, Trash2 } from "lucide-react";
-import { PatientData, MedicineEntry } from "../patient-form";
+import { PatientData, MedicineEntry } from "../patient-form-fields/types";
+import { VoiceContext } from "@/hooks/useConsultationVoice";
 import MedicineAutocomplete from "@/src/modules/medicine/components/MedicineAutocomplete";
 import { MedicineMaster } from "@/src/services/medicine.service";
 
@@ -45,7 +46,7 @@ type Props = {
   isHighlighted?: (section: string) => boolean;
 
   wrapWithMic?: (
-      fieldId: string,
+      context: VoiceContext,
       element: ReactElement<{ className?: string }>
     ) => JSX.Element;
 };
@@ -65,8 +66,18 @@ export default function MedicinesPage({
       <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-3 px-4">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <Pill className="h-4 w-4 text-slate-500" />
-            Prescribed medicines
+            {wrapWithMic?.(
+              { mode: "COMPONENT", component: "Medicines" },
+              <div className="flex items-center gap-2 cursor-pointer">
+                <Pill className="h-4 w-4 text-slate-500" />
+                Prescribed medicines
+              </div>
+            ) ?? (
+              <>
+                <Pill className="h-4 w-4 text-slate-500" />
+                Prescribed medicines
+              </>
+            )}
           </CardTitle>
 
           <div className="flex items-center gap-1.5">
@@ -100,11 +111,10 @@ export default function MedicinesPage({
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <div className="min-w-[1100px]">
-
+          <div className="w-full">
+            <div className="w-full">
               {/* Header */}
-              <div className="grid grid-cols-[40px_1.2fr_0.7fr_0.7fr_0.8fr_0.8fr_0.8fr_0.7fr_36px] items-center gap-2 rounded-md px-2 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+              <div className="hidden lg:grid grid-cols-[40px_1.2fr_0.7fr_0.7fr_0.8fr_0.8fr_0.8fr_0.7fr_36px] items-center gap-2 rounded-md px-2 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
                 <div>#</div>
                 <div>Medicine</div>
                 <div>Strength</div>
@@ -117,110 +127,148 @@ export default function MedicinesPage({
               </div>
 
               {/* Rows */}
-              <div className="space-y-2 pt-1">
+              <div className="space-y-4 lg:space-y-2 pt-1">
                 {(data.medicines || []).map((m, index) => (
                   <div
                     key={m.id}
-                    className="grid grid-cols-[40px_1.2fr_0.7fr_0.7fr_0.8fr_0.8fr_0.8fr_0.7fr_36px] items-start gap-2 px-2"
+                    className="relative grid grid-cols-1 lg:grid-cols-[40px_1.2fr_0.7fr_0.7fr_0.8fr_0.8fr_0.8fr_0.7fr_36px] items-start gap-3 lg:gap-2 p-3 lg:p-0 lg:px-2 border lg:border-none border-slate-100 rounded-lg bg-slate-50/50 lg:bg-transparent"
                   >
-                    <div className="pt-2 text-center text-[11px] font-medium text-slate-400">
+                    {/* 1. Index (Desktop) */}
+                    <div className="hidden lg:block pt-2 text-center text-[11px] font-medium text-slate-400">
                       {index + 1}
                     </div>
 
-                    {wrapWithMic?.(
-                      `medicines.${m.id}.medicineName`,
-                      <MedicineAutocomplete
-                        value={getMedicineField(m, "medicineName")}
-                        onChange={(value) => updateMedicine(m.id, "medicineName", value)}
-                        onSelectMedicine={(medicine) => {
-                          if (applyMedicineMaster) {
-                            applyMedicineMaster(m.id, medicine);
-                          } else {
-                            updateMedicine(m.id, "medicineName", medicine.medicineName);
-                          }
-                        }}
-                        placeholder="Medicine name"
-                        className={`bg-slate-50 border-slate-200 focus-visible:ring-sky-500 rounded-md ${
-                          isHighlighted("medicines")
-                            ? "ring-2 ring-sky-500 bg-sky-50 animate-pulse"
-                            : ""
-                        }`}
-                      />
-                    )}
+                    {/* Mobile Index (Hidden on Desktop) */}
+                    <div className="lg:hidden flex items-center gap-2 mb-1">
+                      <span className="text-xs font-semibold text-slate-700">Medicine #{index + 1}</span>
+                    </div>
 
-                    {wrapWithMic?.(
-                      `medicines.${m.id}.strength`,
-                      <Input
-                        value={getMedicineField(m, "strength")}
-                        onChange={(e) =>
-                          updateMedicine(m.id, "strength", e.target.value)
-                        }
-                        placeholder="e.g., 500mg"
-                        className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
-                      />
-                    )}
+                    {/* 2. Medicine Name */}
+                    <div className="flex flex-col gap-1 lg:block lg:gap-0">
+                      <label className="lg:hidden text-[10px] uppercase text-slate-500 font-semibold">Medicine Name</label>
+                      {wrapWithMic?.(
+                        { mode: "FIELD", field: `medicines.${m.id}.medicineName` },
+                        <MedicineAutocomplete
+                          value={getMedicineField(m, "medicineName")}
+                          onChange={(value) => updateMedicine(m.id, "medicineName", value)}
+                          onSelectMedicine={(medicine) => {
+                            if (applyMedicineMaster) {
+                              applyMedicineMaster(m.id, medicine);
+                            } else {
+                              updateMedicine(m.id, "medicineName", medicine.medicineName);
+                            }
+                          }}
+                          placeholder="Medicine name"
+                          className={`bg-slate-50 border-slate-200 focus-visible:ring-sky-500 rounded-md ${
+                            isHighlighted("medicines")
+                              ? "ring-2 ring-sky-500 bg-sky-50 animate-pulse"
+                              : ""
+                          }`}
+                        />
+                      )}
+                    </div>
 
-                    {wrapWithMic?.(
-                      `medicines.${m.id}.dosage`,
-                      <Input
-                        value={getMedicineField(m, "dosage")}
-                        onChange={(e) =>
-                          updateMedicine(m.id, "dosage", e.target.value)
-                        }
-                        placeholder="e.g., 1 tab"
-                        className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
-                      />
-                    )}
+                    {/* 3 & 4. Strength and Dose */}
+                    <div className="grid grid-cols-2 gap-3 lg:contents">
+                      <div className="flex flex-col gap-1 lg:block lg:gap-0">
+                        <label className="lg:hidden text-[10px] uppercase text-slate-500 font-semibold">Strength</label>
+                        {wrapWithMic?.(
+                          { mode: "FIELD", field: `medicines.${m.id}.strength` },
+                          <Input
+                            value={getMedicineField(m, "strength")}
+                            onChange={(e) =>
+                              updateMedicine(m.id, "strength", e.target.value)
+                            }
+                            placeholder="e.g., 500mg"
+                            className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
+                          />
+                        )}
+                      </div>
 
-                    {wrapWithMic?.(
-                      `medicines.${m.id}.frequency`,
-                      <Input
-                        value={getMedicineField(m, "frequency")}
-                        onChange={(e) =>
-                          updateMedicine(m.id, "frequency", e.target.value)
-                        }
-                        placeholder="e.g., BD"
-                        className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
-                      />
-                    )}
+                      <div className="flex flex-col gap-1 lg:block lg:gap-0">
+                        <label className="lg:hidden text-[10px] uppercase text-slate-500 font-semibold">Dose</label>
+                        {wrapWithMic?.(
+                          { mode: "FIELD", field: `medicines.${m.id}.dosage` },
+                          <Input
+                            value={getMedicineField(m, "dosage")}
+                            onChange={(e) =>
+                              updateMedicine(m.id, "dosage", e.target.value)
+                            }
+                            placeholder="e.g., 1 tab"
+                            className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
+                          />
+                        )}
+                      </div>
+                    </div>
 
-                    {wrapWithMic?.(
-                      `medicines.${m.id}.duration`,
-                      <Input
-                        value={getMedicineField(m, "duration")}
-                        onChange={(e) =>
-                          updateMedicine(m.id, "duration", e.target.value)
-                        }
-                        placeholder="e.g., 5 days"
-                        className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
-                      />
-                    )}
+                    {/* 5 & 6. Freq and Duration */}
+                    <div className="grid grid-cols-2 gap-3 lg:contents">
+                      <div className="flex flex-col gap-1 lg:block lg:gap-0">
+                        <label className="lg:hidden text-[10px] uppercase text-slate-500 font-semibold">Freq</label>
+                        {wrapWithMic?.(
+                          { mode: "FIELD", field: `medicines.${m.id}.frequency` },
+                          <Input
+                            value={getMedicineField(m, "frequency")}
+                            onChange={(e) =>
+                              updateMedicine(m.id, "frequency", e.target.value)
+                            }
+                            placeholder="e.g., BD"
+                            className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
+                          />
+                        )}
+                      </div>
 
-                    {wrapWithMic?.(
-                      `medicines.${m.id}.instruction`,
-                      <Input
-                        value={getMedicineField(m, "instruction")}
-                        onChange={(e) =>
-                          updateMedicine(m.id, "instruction", e.target.value)
-                        }
-                        placeholder="e.g., after food"
-                        className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
-                      />
-                    )}
+                      <div className="flex flex-col gap-1 lg:block lg:gap-0">
+                        <label className="lg:hidden text-[10px] uppercase text-slate-500 font-semibold">Duration</label>
+                        {wrapWithMic?.(
+                          { mode: "FIELD", field: `medicines.${m.id}.duration` },
+                          <Input
+                            value={getMedicineField(m, "duration")}
+                            onChange={(e) =>
+                              updateMedicine(m.id, "duration", e.target.value)
+                            }
+                            placeholder="e.g., 5 days"
+                            className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
+                          />
+                        )}
+                      </div>
+                    </div>
 
-                    {wrapWithMic?.(
-                      `medicines.${m.id}.quantity`,
-                      <Input
-                        value={getMedicineField(m, "quantity")}
-                        onChange={(e) =>
-                          updateMedicine(m.id, "quantity", e.target.value)
-                        }
-                        placeholder="e.g., 10"
-                        className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
-                      />
-                    )}
+                    {/* 7 & 8. Instructions and Qty */}
+                    <div className="grid grid-cols-2 gap-3 lg:contents">
+                      <div className="flex flex-col gap-1 lg:block lg:gap-0">
+                        <label className="lg:hidden text-[10px] uppercase text-slate-500 font-semibold">Instructions</label>
+                        {wrapWithMic?.(
+                          { mode: "FIELD", field: `medicines.${m.id}.instruction` },
+                          <Input
+                            value={getMedicineField(m, "instruction")}
+                            onChange={(e) =>
+                              updateMedicine(m.id, "instruction", e.target.value)
+                            }
+                            placeholder="e.g., after food"
+                            className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
+                          />
+                        )}
+                      </div>
 
-                    <div className="flex justify-end pt-1">
+                      <div className="flex flex-col gap-1 lg:block lg:gap-0">
+                        <label className="lg:hidden text-[10px] uppercase text-slate-500 font-semibold">Qty</label>
+                        {wrapWithMic?.(
+                          { mode: "FIELD", field: `medicines.${m.id}.quantity` },
+                          <Input
+                            value={getMedicineField(m, "quantity")}
+                            onChange={(e) =>
+                              updateMedicine(m.id, "quantity", e.target.value)
+                            }
+                            placeholder="e.g., 10"
+                            className="h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500"
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 9. Trash Button */}
+                    <div className="absolute top-2 right-2 lg:static lg:flex lg:justify-end lg:pt-1 z-10">
                       <Button
                         type="button"
                         size="sm"

@@ -10,6 +10,7 @@ import { useConsultationVoice } from "@/hooks/useConsultationVoice";
 import { ConsultationHeader } from "../components/ConsultationHeader";
 import { PatientInfoCard } from "../components/PatientInfoCard";
 import { PrescriptionHistoryCard } from "../components/PrescriptionHistoryCard";
+import { SavePrescriptionRequest } from "../../../../types/backend";
 
 const emptyPatientData: PatientData = {
   registrationId: null,
@@ -25,7 +26,7 @@ const emptyPatientData: PatientData = {
   temperature: null,
   oxygenSaturation: null,
   respiratoryRate: null,
-  bloodGroup: null,
+
   lmp: null,
   visitDate: null,
   allergies: null,
@@ -34,20 +35,20 @@ const emptyPatientData: PatientData = {
   symptoms: null,
   medicalHistory: null,
   quickNotes: null,
-  complaints: [],
-  generalExaminations: [],
-  pastMedicalHistories: [],
-  diagnoses: [],
+  complaints: [{ id: "comp-new", complaintName: "", complaintFrequency: "", severity: "", complaintDuration: "" }],
+  generalExaminations: [{ id: "ge-new", finding: "", status: "", severity: "" }],
+  pastMedicalHistories: [{ id: "pmh-new", disease: "", duration: "", status: "", notes: "" }],
+  diagnoses: [{ id: "diag-new", diagnosisName: "", diagnosisCode: "", diagnosisDuration: "" }],
   advice: null,
-  testsRequested: [],
+  testsRequested: [{ id: "test-new", name: "", notes: "" }],
   nextVisit: null,
-  investigations: [],
+  investigations: [{ id: "inv-new", test: "", value: "", notes: "" }],
   payment: null,
   followUp: null,
   contactNumber: null,
   emergencyContact: null,
   insuranceId: null,
-  medicines: [],
+  medicines: [{ id: "med-new", medicineName: "", strength: "", dosage: "", frequency: "", duration: "", instruction: "", quantity: "1" }],
   documents: [],
 };
 
@@ -67,7 +68,7 @@ const convertToPatientFormData = (patient: any): PatientData => {
     temperature: patient.temperature || null,
     oxygenSaturation: patient.oxygenSaturation || null,
     respiratoryRate: patient.respiratoryRate || null,
-    bloodGroup: patient.bloodGroup || null,
+
     lmp: patient.lmp || null,
     visitDate: patient.visitDate || null,
     allergies: patient.allergies || null,
@@ -76,20 +77,20 @@ const convertToPatientFormData = (patient: any): PatientData => {
     symptoms: patient.symptoms || null,
     medicalHistory: patient.medicalHistory || null,
     quickNotes: patient.quickNotes || null,
-    complaints: (patient.complaints || []) as ComplaintEntry[],
-    generalExaminations: (patient.generalExaminations || []) as GeneralExaminationEntry[],
-    pastMedicalHistories: (patient.pastMedicalHistories || []) as PastMedicalHistoryEntry[],
-    diagnoses: (patient.diagnoses || []) as DiagnosisEntry[],
+    complaints: patient.complaints?.length ? patient.complaints : [{ id: "comp-new", complaintName: "", complaintFrequency: "", severity: "", complaintDuration: "" }],
+    generalExaminations: patient.generalExaminations?.length ? patient.generalExaminations : [{ id: "ge-new", finding: "", status: "", severity: "" }],
+    pastMedicalHistories: patient.pastMedicalHistories?.length ? patient.pastMedicalHistories : [{ id: "pmh-new", disease: "", duration: "", status: "", notes: "" }],
+    diagnoses: patient.diagnoses?.length ? patient.diagnoses : [{ id: "diag-new", diagnosisName: "", diagnosisCode: "", diagnosisDuration: "" }],
     advice: patient.advice || null,
-    testsRequested: (patient.testsRequested || []) as TestRequestedEntry[],
+    testsRequested: patient.testsRequested?.length ? patient.testsRequested : [{ id: "test-new", name: "", notes: "" }],
     nextVisit: patient.nextVisit || null,
-    investigations: (patient.investigations || []) as InvestigationEntry[],
+    investigations: patient.investigations?.length ? patient.investigations : [{ id: "inv-new", test: "", value: "", notes: "" }],
     payment: patient.payment || null,
     followUp: patient.followUp || null,
     contactNumber: patient.contactNumber || null,
     emergencyContact: patient.emergencyContact || null,
     insuranceId: patient.insuranceId || null,
-    medicines: (patient.medicines || []) as MedicineEntry[],
+    medicines: patient.medicines?.length ? patient.medicines : [{ id: "med-new", medicineName: "", strength: "", dosage: "", frequency: "", duration: "", instruction: "", quantity: "1" }],
     documents: (patient.documents || []) as DocumentEntry[],
   };
 };
@@ -128,9 +129,10 @@ export default function ConsultationPage() {
     isLoading,
     assistantState,
     highlightedFields,
-    activeVoiceField,
+    activeVoiceContext,
+    extractedPreview,
     registerFieldRef,
-    handleMicToggleForField,
+    handleMicToggle,
     resetTranscript,
     startListening,
     stopListening,
@@ -213,7 +215,7 @@ export default function ConsultationPage() {
       temperature: c.temperature || null,
       oxygenSaturation: c.spo2 || null,
       respiratoryRate: c.respiratoryRate || null,
-      bloodGroup: originalPatient?.bloodGroup || null,
+
       lmp: originalPatient?.lmp || null,
       visitDate: prescription.createdAt ? prescription.createdAt.split("T")[0] : null,
       allergies: c.allergies || null,
@@ -402,7 +404,12 @@ export default function ConsultationPage() {
 
       // General Examinations (Max 255)
       const validGeneralExaminations = (patientData.generalExaminations || [])
-        .map((ge) => ge.examinationName)
+        .map((ge) => {
+          let str = ge.finding || "";
+          if (ge.status) str += ` (${ge.status})`;
+          if (ge.severity) str += ` [${ge.severity}]`;
+          return str;
+        })
         .filter(Boolean)
         .filter((name) => name.trim() !== "")
         .map((name) => {
@@ -415,23 +422,20 @@ export default function ConsultationPage() {
 
       // Past Medical History (allergies/currentMedicine max 1000, medicalHistory max 2000)
       const validPastMedicalHistories = (patientData.pastMedicalHistories || [])
-        .filter((pmh) => (pmh.allergies && pmh.allergies.trim() !== "") ||
-                         (pmh.currentMedicine && pmh.currentMedicine.trim() !== "") ||
-                         (pmh.medicalHistory && pmh.medicalHistory.trim() !== ""))
+        .filter((pmh) => pmh.disease && pmh.disease.trim() !== "")
         .map((pmh) => {
-          if (pmh.allergies && pmh.allergies.length > 1000) {
-            throw new Error(`Medical History: Allergies exceeds 1000 characters.`);
-          }
-          if (pmh.currentMedicine && pmh.currentMedicine.length > 1000) {
-            throw new Error(`Medical History: Current Medicine exceeds 1000 characters.`);
-          }
-          if (pmh.medicalHistory && pmh.medicalHistory.length > 2000) {
-            throw new Error(`Medical History: Medical History exceeds 2000 characters.`);
+          let str = pmh.disease || "";
+          if (pmh.duration) str += ` for ${pmh.duration}`;
+          if (pmh.status) str += ` (${pmh.status})`;
+          if (pmh.notes) str += ` - ${pmh.notes}`;
+          
+          if (str.length > 2000) {
+            throw new Error(`Medical History: History exceeds 2000 characters.`);
           }
           return {
-            allergies: pmh.allergies || "",
-            currentMedicine: pmh.currentMedicine || "",
-            medicalHistory: pmh.medicalHistory || "",
+            allergies: "",
+            currentMedicine: "",
+            medicalHistory: str,
           };
         });
 
@@ -459,11 +463,11 @@ export default function ConsultationPage() {
       // Diagnostics (Name required, max 255, notes max 1000)
       const validDiagnostics = [
         ...patientData.investigations.map((inv) => ({
-          testName: inv.investigationName || "",
-          notes: inv.notes || "",
+          testName: inv.test || "",
+          notes: [inv.value, inv.notes].filter(Boolean).join(" - ") || "",
         })),
         ...patientData.testsRequested.map((tr) => ({
-          testName: tr.testName || "",
+          testName: tr.name || "",
           notes: tr.notes || "",
         })),
       ]
@@ -572,9 +576,8 @@ export default function ConsultationPage() {
       // ==========================================
       // 2. Build Payload
       // ==========================================
-      const payload = {
+      const payload: SavePrescriptionRequest = {
         registrationId: Number(registrationId),
-        registrationNumber: originalPatient?.registrationNumber || patientData.registrationNumber || undefined,
         
         // Vitals mapped as actual numbers (or omitted via undefined if null)
         height: patientData.height !== null ? Number(patientData.height) : undefined,
@@ -592,13 +595,10 @@ export default function ConsultationPage() {
         diagnostics: validDiagnostics,
         documents: validDocuments,
 
-        advice: patientData.advice || null,
-        notes: patientData.quickNotes || null,
-        allergies: patientData.allergies || null,
-        medicalHistory: patientData.medicalHistory || null,
-        currentMedicine: patientData.currentMedications || null,
+        advice: patientData.advice || undefined,
+        notes: patientData.quickNotes || undefined,
 
-        followUpDate: patientData.followUp ? new Date(patientData.followUp).toISOString() : null,
+        followUpDate: patientData.followUp ? new Date(patientData.followUp).toISOString() : undefined,
         medicines: validMedicines,
       };
 
@@ -608,9 +608,9 @@ export default function ConsultationPage() {
       });
 
       if (sameDayPrescription) {
-        await prescriptionService.updatePrescription(sameDayPrescription.prescriptionId, payload as any);
+        await prescriptionService.updatePrescription(sameDayPrescription.prescriptionId, payload);
       } else {
-        await prescriptionService.savePrescription(payload as any);
+        await prescriptionService.savePrescription(payload);
       }
 
       if (originalPatient) {
@@ -662,7 +662,9 @@ export default function ConsultationPage() {
 
       <main className="mx-auto max-w-none px-3 py-4 sm:px-4 lg:px-6 w-full">
         <FloatingAIAssistant
-          state={assistantState as any}
+          assistantStage={assistantState as any}
+          activeVoiceContext={activeVoiceContext}
+          extractedPreview={extractedPreview}
           transcript={transcript}
           error={error}
           isSupported={isSupported}
@@ -685,8 +687,8 @@ export default function ConsultationPage() {
                 isListening,
                 isProcessing: isLoading,
                 isSupported,
-                activeVoiceField,
-                onMicToggle: handleMicToggleForField,
+                activeVoiceContext,
+                onMicToggle: handleMicToggle,
               }}
               registerFieldRef={registerFieldRef}
               prescriptionHistoryNode={
