@@ -4,6 +4,10 @@ export interface UploadedDocument {
   id: number;
   fileName: string;
   url: string;
+  documentType?: string;
+  patientId?: number;
+  patientName?: string;
+  mobileNumber?: string;
 }
 
 /**
@@ -28,6 +32,14 @@ export async function uploadPatientDocument(
  */
 export async function getPatientDocuments(patientId: number): Promise<UploadedDocument[]> {
   return await apiClient.get(`/api/patients/${patientId}/documents`);
+}
+
+/**
+ * Get documents linked to a prescription.
+ * GET /api/prescription/{prescriptionId}/documents
+ */
+export async function getPrescriptionDocuments(prescriptionId: number): Promise<UploadedDocument[]> {
+  return await apiClient.get(`/api/prescription/${prescriptionId}/documents`);
 }
 
 /**

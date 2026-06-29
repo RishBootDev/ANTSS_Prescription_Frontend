@@ -92,8 +92,11 @@ export default function PatientListPage() {
   };
 
   const handleConsult = (patient: PatientData) => {
+    if (patient.id) {
+      localStorage.removeItem(`draftConsultation_${patient.id}`);
+    }
     localStorage.setItem("currentConsultationPatient", JSON.stringify(patient));
-    router.push("/consultation");
+    router.push("/consultation?fresh=1");
   };
 
   const handleProfile = (patient: PatientData) => {

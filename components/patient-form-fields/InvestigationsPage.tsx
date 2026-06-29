@@ -1,6 +1,6 @@
 "use client";
 
-import { JSX, ReactElement, useMemo, useState } from "react";
+import { ChangeEvent, JSX, ReactElement, useMemo, useState } from "react";
 import {
   Card,
   CardHeader,
@@ -17,6 +17,7 @@ import {
   Trash2,
   Upload,
   FileText,
+  Loader2,
   X,
 } from "lucide-react";
 import {
@@ -28,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { PatientData, InvestigationEntry } from "../patient-form-fields/types";
 import { VoiceContext } from "@/hooks/useConsultationVoice";
+import { uploadPatientDocument } from "@/lib/services/documentService";
 
 type Props = {
   data: PatientData;
@@ -71,6 +73,7 @@ export default function InvestigationsPage({
 }: Props) {
   const [internalPreviewOpen, setInternalPreviewOpen] = useState(false);
   const [selectedInvestigationId, setSelectedInvestigationId] = useState<string | null>(null);
+  const [uploadingInvestigationId, setUploadingInvestigationId] = useState<string | null>(null);
   const investigations = useMemo(() => data.investigations || [], [data.investigations]);
   const selectedInvestigation =
     investigations.find((inv) => inv.id === selectedInvestigationId) ||
@@ -95,14 +98,33 @@ export default function InvestigationsPage({
     return /\.(png|jpe?g|gif|webp|bmp|svg)(\?|#|$)/.test(source);
   };
 
-  // Mock file upload handler
-  const handleFileUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (id: string, e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+
+    if (!file) {
+      return;
+    }
+
+    if (!data.patientId) {
+      alert("Please save the patient first before uploading investigation reports.");
+      e.target.value = "";
+      return;
+    }
+
+    setUploadingInvestigationId(id);
+
+    try {
+      const result = await uploadPatientDocument(data.patientId, file, "INVESTIGATION");
       updateInvestigationMultiple(id, {
-        documentUrl: URL.createObjectURL(file), // temporary local URL
-        documentFileName: file.name
+        documentUrl: result.url,
+        documentFileName: result.fileName || file.name,
       });
+    } catch (err: any) {
+      console.error("Investigation upload failed:", err);
+      alert(err.message || "Failed to upload investigation report");
+    } finally {
+      setUploadingInvestigationId(null);
+      e.target.value = "";
     }
   };
 
@@ -224,7 +246,12 @@ export default function InvestigationsPage({
 
                 {/* Attachment */}
                 <div className="w-24 flex justify-center items-center">
-                  {inv.documentUrl ? (
+                  {uploadingInvestigationId === inv.id ? (
+                    <div className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 text-[10px] text-slate-500">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Uploading
+                    </div>
+                  ) : inv.documentUrl ? (
                      <div className="flex items-center gap-1 bg-sky-50 text-sky-700 px-2 py-1 rounded-md text-[10px] border border-sky-100 max-w-[90px]">
                        <FileText className="h-3 w-3 flex-shrink-0" />
                        <button
