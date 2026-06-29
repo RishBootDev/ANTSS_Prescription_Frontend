@@ -6,6 +6,7 @@ const FloatingAIAssistant = dynamic(() => import("@/components/FloatingAIAssista
 import { useAuthStore } from "@/src/store/authStore";
 import { prescriptionService } from "@/src/services/prescription.service";
 import { useConsultationVoice } from "@/hooks/useConsultationVoice";
+import { getPrescriptionDocuments } from "@/lib/services/documentService";
 
 import { ConsultationHeader } from "../components/ConsultationHeader";
 import { PatientInfoCard } from "../components/PatientInfoCard";
@@ -40,7 +41,7 @@ const emptyPatientData: PatientData = {
   pastMedicalHistories: [{ id: "pmh-new", disease: "", duration: "", status: "", notes: "" }],
   diagnoses: [{ id: "diag-new", diagnosisName: "", diagnosisCode: "", diagnosisDuration: "" }],
   advice: null,
-  testsRequested: [{ id: "test-new", name: "", notes: "" }],
+  testsRequested: [{ id: "test-new", name: "", notes: "", documentUrl: null, documentFileName: null }],
   nextVisit: null,
   investigations: [{ id: "inv-new", test: "", value: "", notes: "" }],
   payment: null,
@@ -82,7 +83,7 @@ const convertToPatientFormData = (patient: any): PatientData => {
     pastMedicalHistories: patient.pastMedicalHistories?.length ? patient.pastMedicalHistories : [{ id: "pmh-new", disease: "", duration: "", status: "", notes: "" }],
     diagnoses: patient.diagnoses?.length ? patient.diagnoses : [{ id: "diag-new", diagnosisName: "", diagnosisCode: "", diagnosisDuration: "" }],
     advice: patient.advice || null,
-    testsRequested: patient.testsRequested?.length ? patient.testsRequested : [{ id: "test-new", name: "", notes: "" }],
+    testsRequested: patient.testsRequested?.length ? patient.testsRequested : [{ id: "test-new", name: "", notes: "", documentUrl: null, documentFileName: null }],
     nextVisit: patient.nextVisit || null,
     investigations: patient.investigations?.length ? patient.investigations : [{ id: "inv-new", test: "", value: "", notes: "" }],
     payment: patient.payment || null,
@@ -91,7 +92,7 @@ const convertToPatientFormData = (patient: any): PatientData => {
     emergencyContact: patient.emergencyContact || null,
     insuranceId: patient.insuranceId || null,
     medicines: patient.medicines?.length ? patient.medicines : [{ id: "med-new", medicineName: "", strength: "", dosage: "", frequency: "", duration: "", instruction: "", quantity: "1" }],
-    documents: (patient.documents || []) as DocumentEntry[],
+    documents: [],
   };
 };
 
@@ -121,8 +122,26 @@ const getDocumentUrl = (item: any) =>
 const getDocumentFileName = (item: any) =>
   item.documentFileName || item.fileName || item.reportFileName || item.attachmentName || null;
 
+const stripDocumentState = (data: PatientData): PatientData => ({
+  ...data,
+  documents: [],
+  investigations: (data.investigations || []).map((inv) => ({
+    ...inv,
+    documentUrl: null,
+    documentFileName: null,
+  })),
+  testsRequested: (data.testsRequested || []).map((test) => ({
+    ...test,
+    documentUrl: null,
+    documentFileName: null,
+  })),
+});
+
 export default function ConsultationPage() {
   const router = useRouter();
+  const [isFreshConsultation] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("fresh") === "1"
+  );
   const { isAuthenticated, initialize } = useAuthStore();
   const [patientData, setPatientData] = useState<PatientData>(emptyPatientData);
   const [originalPatient, setOriginalPatient] = useState<any | null>(null);
@@ -199,14 +218,15 @@ export default function ConsultationPage() {
         const patient = JSON.parse(storedPatient);
         setOriginalPatient(patient);
 
-        const draftStr = localStorage.getItem(`draftConsultation_${patient.id}`);
+        const draftStr = isFreshConsultation ? null : localStorage.getItem(`draftConsultation_${patient.id}`);
+        if (isFreshConsultation && patient.id) {
+          localStorage.removeItem(`draftConsultation_${patient.id}`);
+          setViewingPrescriptionId(null);
+        }
         if (draftStr) {
           try {
             const draft = JSON.parse(draftStr);
-            setPatientData(draft.patientData);
-            if (draft.viewingPrescriptionId) {
-              setViewingPrescriptionId(draft.viewingPrescriptionId);
-            }
+            setPatientData(stripDocumentState(draft.patientData));
           } catch (e) {
             setPatientData(convertToPatientFormData(patient));
           }
@@ -236,10 +256,19 @@ export default function ConsultationPage() {
     }
   }, [patientData, viewingPrescriptionId, originalPatient]);
 
-  const handleLoadPrescription = (prescription: any) => {
+  const handleLoadPrescription = async (prescription: any) => {
     setViewingPrescriptionId(prescription.prescriptionId);
 
     const c = prescription.consultation || {};
+    let prescriptionDocuments = prescription.documents || [];
+
+    if (prescription.prescriptionId) {
+      try {
+        prescriptionDocuments = await getPrescriptionDocuments(Number(prescription.prescriptionId));
+      } catch (err) {
+        console.error("Failed to fetch prescription documents:", err);
+      }
+    }
 
     const mappedData: PatientData = {
       registrationId: c.registrationId || null,
@@ -296,6 +325,8 @@ export default function ConsultationPage() {
         id: `tr-${i}`,
         name: tr.testName || tr.name || tr.diagnosticName || "",
         notes: tr.notes || tr.note || null,
+        documentUrl: getDocumentUrl(tr),
+        documentFileName: getDocumentFileName(tr),
       })),
       nextVisit: null,
       // Map investigation document links into investigations
@@ -313,13 +344,17 @@ export default function ConsultationPage() {
       // Build a set of investigation document URLs so we can filter them out of
       // the documents list — they already belong to an investigation row
       documents: (() => {
-        const invDocUrls = new Set(
+        const attachedDocUrls = new Set(
           (prescription.investigations || [])
             .map((inv: any) => getDocumentUrl(inv))
             .filter(Boolean)
         );
-        return (prescription.documents || [])
-          .filter((doc: any) => !invDocUrls.has(getDocumentUrl(doc)))
+        (prescription.testRequested || prescription.diagnostics || [])
+          .map((tr: any) => getDocumentUrl(tr))
+          .filter(Boolean)
+          .forEach((url: string) => attachedDocUrls.add(url));
+        return prescriptionDocuments
+          .filter((doc: any) => !attachedDocUrls.has(getDocumentUrl(doc)))
           .map((doc: any, i: number) => ({
             id: doc.id || `doc-${i}`,
             fileName: getDocumentFileName(doc) || `Document ${i + 1}`,
@@ -364,13 +399,16 @@ export default function ConsultationPage() {
 
   // Auto-load today's prescription if it exists in the history
   useEffect(() => {
+    if (isFreshConsultation) {
+      return;
+    }
     if (prescriptionHistory.length > 0 && !viewingPrescriptionId) {
       const todayRx = prescriptionHistory.find((p) => p.createdAt?.startsWith(todayYYYYMMDD));
       if (todayRx) {
         handleLoadPrescription(todayRx);
       }
     }
-  }, [prescriptionHistory, viewingPrescriptionId, todayYYYYMMDD]);
+  }, [prescriptionHistory, viewingPrescriptionId, todayYYYYMMDD, isFreshConsultation]);
 
   const goBack = () => {
     if (originalPatient) {
@@ -558,22 +596,17 @@ export default function ConsultationPage() {
           return {
             testName: name,
             notes: tr.notes || "",
+            documentUrl: tr.documentUrl || undefined,
+            documentFileName: tr.documentFileName || undefined,
           };
         });
 
       // Documents (fileName max 255, url max 2048)
-      const validDocuments = [
-        ...patientData.documents.map((doc) => ({
+      const validDocuments = patientData.documents
+        .map((doc) => ({
           fileName: doc.fileName || "",
           url: doc.url || "",
-        })),
-        ...patientData.investigations
-          .filter((inv) => inv.documentUrl)
-          .map((inv) => ({
-            fileName: inv.documentFileName || "investigation_doc",
-            url: inv.documentUrl || "",
-          }))
-      ]
+        }))
         .filter((doc) => doc.fileName && doc.url && doc.fileName.trim() !== "" && doc.url.trim() !== "")
         .map((doc) => {
           const fileName = doc.fileName.trim();
@@ -720,11 +753,12 @@ export default function ConsultationPage() {
     }
   };
 
-  const isReadOnly = viewingPrescriptionId
-    ? !prescriptionHistory.some(
-        (p) => p.prescriptionId === viewingPrescriptionId && p.createdAt?.startsWith(todayYYYYMMDD)
-      )
-    : false;
+  const viewedPrescription = viewingPrescriptionId
+    ? prescriptionHistory.find((p) => p.prescriptionId === viewingPrescriptionId)
+    : null;
+  const isReadOnly = Boolean(
+    viewedPrescription && !viewedPrescription.createdAt?.startsWith(todayYYYYMMDD)
+  );
 
   return (
     <div className="min-h-screen bg-[#f5f7fa]">

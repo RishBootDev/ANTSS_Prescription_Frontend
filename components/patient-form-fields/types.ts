@@ -53,6 +53,8 @@ export interface TestRequestedEntry {
   id: string
   name: string
   notes?: string
+  documentUrl?: string | null
+  documentFileName?: string | null
 }
 
 export interface DocumentEntry {
@@ -137,7 +139,7 @@ export const emptyPatientData: PatientData = {
   pastMedicalHistories: [{ id: "pmh-new", disease: "", duration: "", status: "" }],
   diagnoses: [{ id: "diag-new", diagnosisName: "", diagnosisCode: null, diagnosisDuration: null }],
   advice: null,
-  testsRequested: [{ id: "test-new", name: "" }],
+  testsRequested: [{ id: "test-new", name: "", documentUrl: null, documentFileName: null }],
   nextVisit: null,
   investigations: [{ id: "inv-new", test: "", value: "" }],
   payment: null,

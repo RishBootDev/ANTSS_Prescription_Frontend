@@ -1,6 +1,6 @@
 "use client";
 
-import { JSX, ReactElement } from "react";
+import { ChangeEvent, JSX, ReactElement, useState } from "react";
 import {
   Card,
   CardHeader,
@@ -9,9 +9,10 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Activity, Plus, Trash2 } from "lucide-react";
+import { Activity, FileText, Loader2, Plus, Trash2, Upload, X } from "lucide-react";
 import { PatientData, TestRequestedEntry } from "../patient-form-fields/types";
 import { VoiceContext } from "@/hooks/useConsultationVoice";
+import { uploadPatientDocument } from "@/lib/services/documentService";
 
 type Props = {
   data: PatientData;
@@ -43,6 +44,41 @@ export default function TestRequestedPage({
   wrapWithMic = (_, el) => el,
   registerFieldRef,
 }: Props) {
+  const [uploadingTestId, setUploadingTestId] = useState<string | null>(null);
+
+  const handleFileUpload = async (id: string, e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!data.patientId) {
+      alert("Please save the patient first before uploading test documents.");
+      e.target.value = "";
+      return;
+    }
+
+    setUploadingTestId(id);
+
+    try {
+      const result = await uploadPatientDocument(data.patientId, file, "TEST_REQUESTED");
+      updateTestRequested(id, "documentUrl", result.url);
+      updateTestRequested(id, "documentFileName", result.fileName || file.name);
+    } catch (err: any) {
+      console.error("Test document upload failed:", err);
+      alert(err.message || "Failed to upload test document");
+    } finally {
+      setUploadingTestId(null);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveFile = (id: string) => {
+    updateTestRequested(id, "documentUrl", "");
+    updateTestRequested(id, "documentFileName", "");
+  };
+
   return (
     <Card className="border-slate-200 shadow-sm rounded-xl bg-white overflow-hidden">
       <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-3 px-4">
@@ -79,8 +115,9 @@ export default function TestRequestedPage({
           <div className="space-y-3">
             {/* Column Headers */}
             <div className="flex gap-2 px-8 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-              <div className="w-1/2">Test Name</div>
+              <div className="w-2/5">Test Name</div>
               <div className="flex-1">Notes</div>
+              <div className="w-28 text-center">Attachment</div>
             </div>
 
             {(data.testsRequested || []).map((tr, index) => (
@@ -94,7 +131,7 @@ export default function TestRequestedPage({
                 </div>
 
                 {/* Test Name */}
-                <div className="w-1/2">
+                <div className="w-2/5">
                   {wrapWithMic(
                     { mode: "FIELD", field: `testsRequested.${tr.id}.name` },
                     <Input
@@ -118,6 +155,42 @@ export default function TestRequestedPage({
                       className={`h-8 text-xs bg-slate-50 border-slate-200 focus-visible:ring-sky-500 ${inputClass("testsRequested")}`}
                       ref={(el) => registerFieldRef?.(`testsRequested.${tr.id}.notes`, el)}
                     />
+                  )}
+                </div>
+
+                <div className="w-28 flex justify-center items-center">
+                  {uploadingTestId === tr.id ? (
+                    <div className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 text-[10px] text-slate-500">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Uploading
+                    </div>
+                  ) : tr.documentUrl ? (
+                    <div className="flex max-w-[104px] items-center gap-1 rounded-md border border-sky-100 bg-sky-50 px-2 py-1 text-[10px] text-sky-700">
+                      <FileText className="h-3 w-3 shrink-0" />
+                      <a
+                        href={tr.documentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="min-w-0 flex-1 truncate text-left hover:underline"
+                        title={tr.documentFileName || "Open document"}
+                      >
+                        {tr.documentFileName || "Document"}
+                      </a>
+                      <button type="button" onClick={() => handleRemoveFile(tr.id)} className="hover:text-red-500">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="inline-flex h-7 cursor-pointer items-center justify-center rounded-md border border-dashed border-slate-300 px-2 text-xs text-slate-500 transition-colors hover:border-slate-400 hover:bg-slate-50 hover:text-slate-700">
+                      <Upload className="mr-1 h-3 w-3" />
+                      Upload
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*,.pdf"
+                        onChange={(e) => handleFileUpload(tr.id, e)}
+                      />
+                    </label>
                   )}
                 </div>
 

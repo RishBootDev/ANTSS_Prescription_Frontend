@@ -311,6 +311,8 @@ export function usePatientForm(props: BaseTemplateProps) {
         id: crypto.randomUUID(),
         name: "",
         notes: "",
+        documentUrl: null,
+        documentFileName: null,
       },
     ]);
   };

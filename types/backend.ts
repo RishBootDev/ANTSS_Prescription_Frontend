@@ -2,7 +2,7 @@
 
 export interface PatientRequest {
   patientName: string;
-  mobileNumber?: string;
+  mobileNumber: string;
   gender: string;
   dateOfBirth?: string;
   age?: number;
@@ -54,6 +54,8 @@ export interface InvestigationRequest {
 export interface TestRequestedRequest {
   testName?: string;
   notes?: string;
+  documentUrl?: string;
+  documentFileName?: string;
 }
 
 export interface MedicineRequest {
@@ -126,6 +128,9 @@ export interface PatientRegistrationResponse {
   clinicName?: string;
   hospitalId?: number;
   hospitalName?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ConsultationResponse {
@@ -259,6 +264,8 @@ export interface TestRequestedDetailResponse {
   testName: string;
   notes: string;
   createdAt: string;
+  documentUrl: string;
+  documentFileName: string;
 }
 
 export interface DocumentDetailResponse {
