@@ -1,5 +1,16 @@
 import { MappedPrescription, MappedVital, MappedMedicine, MappedTest } from "@/types/prescription";
 
+const cleanText = (value: unknown) =>
+  value == null ? "" : String(value).trim();
+
+const joinDetails = (values: unknown[], separator = ", ") =>
+  values.map(cleanText).filter(Boolean).join(separator);
+
+const isMeaningfulText = (value: unknown) => {
+  const normalized = cleanText(value).toLowerCase();
+  return Boolean(normalized) && !["none", "n/a", "na", "null", "undefined"].includes(normalized);
+};
+
 const defaultClinicInfo = {
   name: "SMS hospital",
   address: "B/503, Business Center, MG Road, Pune - 411000.",
@@ -35,9 +46,13 @@ export function convertPatientDataToPrescription(
   // Convert vitals
   const vitals: MappedVital[] = [];
   if (consultation.bp || consultation.bloodPressureSystolic || consultation.bloodPressureDiastolic) {
+    const bloodPressure = cleanText(consultation.bp) || joinDetails(
+      [consultation.bloodPressureSystolic, consultation.bloodPressureDiastolic],
+      "/"
+    );
     vitals.push({
       label: "Blood Pressure",
-      value: consultation.bp || `${consultation.bloodPressureSystolic || '---'}/${consultation.bloodPressureDiastolic || '---'}`,
+      value: bloodPressure,
       unit: "mmHg"
     });
   }
@@ -57,7 +72,7 @@ export function convertPatientDataToPrescription(
     vitals.push({ label: "Height", value: consultation.height.toString(), unit: "cm" });
   }
   if (consultation.respiratoryRate) {
-    vitals.push({ label: "Resp Rate", value: consultation.respiratoryRate.toString(), unit: "bpm" });
+    vitals.push({ label: "Resp Rate", value: consultation.respiratoryRate.toString(), unit: "breaths/min" });
   }
 
   // Convert complaints
@@ -89,6 +104,23 @@ export function convertPatientDataToPrescription(
 
   // Convert general examination to Clinical Findings
   const clinicalFindings: string[] = [];
+  if (Array.isArray(consultation.generalExaminations)) {
+    consultation.generalExaminations.forEach((examination: any) => {
+      const finding = cleanText(
+        examination.finding || examination.generalExamination || examination.name
+      );
+      if (!finding) return;
+
+      const details = joinDetails([
+        examination.status,
+        examination.severity,
+        examination.notes,
+      ]);
+      clinicalFindings.push(
+        `${finding}${details ? ` (${details})` : ""}`.toUpperCase()
+      );
+    });
+  }
   if (consultation.generalExamination) {
     consultation.generalExamination.split('\n').forEach((line: string) => {
       const trimmed = line.trim();
@@ -98,10 +130,10 @@ export function convertPatientDataToPrescription(
 
   // Convert allergies and history
   const allergies: string[] = [];
-  if (consultation.allergies) allergies.push(consultation.allergies);
+  if (isMeaningfulText(consultation.allergies)) allergies.push(consultation.allergies);
   if (consultation.pastMedicalHistories && consultation.pastMedicalHistories.length > 0) {
     consultation.pastMedicalHistories.forEach((pmh: any) => {
-      if (pmh.allergies) allergies.push(pmh.allergies);
+      if (isMeaningfulText(pmh.allergies)) allergies.push(pmh.allergies);
     });
   }
 
@@ -112,7 +144,15 @@ export function convertPatientDataToPrescription(
   }
   if (consultation.pastMedicalHistories && consultation.pastMedicalHistories.length > 0) {
     consultation.pastMedicalHistories.forEach((pmh: any) => {
-      if (pmh.medicalHistory) pastHistory.push(pmh.medicalHistory);
+      const condition = cleanText(
+        pmh.disease || pmh.medicalHistory || pmh.history || pmh.condition
+      );
+      const details = joinDetails([pmh.duration, pmh.status, pmh.notes]);
+      if (condition) {
+        pastHistory.push(`${condition}${details ? ` (${details})` : ""}`);
+      } else if (details) {
+        pastHistory.push(details);
+      }
       if (pmh.currentMedicine) pastHistory.push(`Current Medications: ${pmh.currentMedicine}`);
     });
   }
@@ -124,57 +164,80 @@ export function convertPatientDataToPrescription(
       const name = d.diagnosis || d.diagnosisName || "";
       const code = d.snomedCode || d.diagnosisCode || "";
       return `${name.toUpperCase()}${code ? ` (${code})` : ''}`;
-    }).join(", ");
+    }).filter((item: string) => item.trim()).join(", ");
   } else if (consultation.diagnosisName) {
     diagnosis = `${consultation.diagnosisName.toUpperCase()}${consultation.diagnosisCode ? ` (${consultation.diagnosisCode})` : ''}`;
   }
 
   // Convert medicines
-  const medicines: MappedMedicine[] = patientData.medicines?.map((m: any, idx: number) => {
-    let name = m.medicineName || m.name || "Unknown Medicine";
+  const medicineSource = patientData.medicines || consultation.medicines || [];
+  const medicines: MappedMedicine[] = medicineSource
+    .filter((m: any) => cleanText(m.medicineName || m.name))
+    .map((m: any, idx: number) => {
+    let name = cleanText(m.medicineName || m.name);
     if (m.strength) {
       name += ` ${m.strength}`;
     }
     return {
       id: m.prescriptionMedicineId || m.id || idx,
       genericName: name,
-      brandName: m.medicineName || m.name,
-      dosage: m.dosage || m.dose || "---",
-      frequency: m.frequency || "---",
-      instructions: m.instruction || m.instructions || "",
-      duration: m.duration || "---",
-      quantity: m.quantity
+      brandName: cleanText(m.medicineName || m.name) || undefined,
+      dosage: cleanText(m.dosage || m.dose),
+      frequency: cleanText(m.frequency),
+      instructions: cleanText(m.instruction || m.instructions),
+      duration: cleanText(m.duration),
+      quantity: cleanText(m.quantity) || undefined
     };
-  }) || [];
+  });
 
-  // Convert diagnostics/tests from testRequested array
-  const diagnostics: MappedTest[] = [];
-  const testsSource = patientData.testRequested || patientData.investigations || consultation.testRequested || consultation.investigations;
-  if (testsSource && testsSource.length > 0) {
-    testsSource.forEach((tr: any, i: number) => {
-      const name = tr.testName || tr.investigationName || tr.name;
-      if (name) {
-        diagnostics.push({
-          id: tr.id || `test-${i}`,
-          name: name
-        });
-      }
+  const investigations: MappedTest[] = [];
+  const investigationSource =
+    patientData.investigations || consultation.investigations || [];
+  if (Array.isArray(investigationSource)) {
+    investigationSource.forEach((investigation: any, index: number) => {
+      const name = cleanText(
+        investigation.test ||
+        investigation.investigationName ||
+        investigation.testName ||
+        investigation.name
+      );
+      if (!name) return;
+
+      const notes = joinDetails([
+        investigation.value || investigation.result || investigation.resultValue,
+        investigation.notes || investigation.note || investigation.remarks,
+      ]);
+      investigations.push({
+        id: investigation.id || `investigation-${index}`,
+        name,
+        notes: notes || undefined,
+      });
     });
   }
-  
-  if (patientData.investigations && patientData.investigations.length > 0 && testsSource !== patientData.investigations) {
-    patientData.investigations.forEach((inv: any, i: number) => {
-      if (inv.investigationName) {
-        diagnostics.push({ id: inv.id || `inv-${i}`, name: inv.investigationName });
-      }
-    });
-  }
 
-  if (consultation.testsRequested && typeof consultation.testsRequested === 'string') {
-    consultation.testsRequested.split(',').forEach((test: string, i: number) => {
+  const testsRequested: MappedTest[] = [];
+  const requestedTestsSource =
+    patientData.testsRequested ||
+    patientData.testRequested ||
+    consultation.testsRequested ||
+    consultation.testRequested ||
+    [];
+
+  if (Array.isArray(requestedTestsSource)) {
+    requestedTestsSource.forEach((test: any, index: number) => {
+      const name = cleanText(test.testName || test.name || test.diagnosticName);
+      if (!name) return;
+      testsRequested.push({
+        id: test.id || `test-${index}`,
+        name,
+        notes: cleanText(test.notes || test.note) || undefined,
+      });
+    });
+  } else if (typeof requestedTestsSource === "string") {
+    requestedTestsSource.split(',').forEach((test: string, i: number) => {
       const trimmed = test.trim();
       if (trimmed) {
-        diagnostics.push({
+        testsRequested.push({
           id: `test-str-${i}`,
           name: trimmed
         });
@@ -203,17 +266,22 @@ export function convertPatientDataToPrescription(
       note: "",
       date: formatted
     };
-  } else if (consultation.followUp) {
-    const days = parseInt(consultation.followUp) || 5;
-    const dateObj = new Date();
-    dateObj.setDate(dateObj.getDate() + days);
+  } else if (consultation.followUp || consultation.nextVisit) {
+    const followUpValue = consultation.followUp || consultation.nextVisit;
+    const parsedDate = new Date(followUpValue);
+    const isDateValue = !isNaN(parsedDate.getTime()) && /[-/]/.test(String(followUpValue));
+    const days = isDateValue ? 0 : parseInt(followUpValue, 10) || 0;
+    const dateObj = isDateValue ? parsedDate : new Date();
+    if (!isDateValue && days > 0) {
+      dateObj.setDate(dateObj.getDate() + days);
+    }
     const formattedFollowUpDate = dateObj.toLocaleDateString('en-IN', {
       day: '2-digit', month: 'short', year: 'numeric'
     }).replace(/ /g, '-');
-    
+
     followUp = {
       days,
-      note: `Review after ${days} days`,
+      note: days > 0 ? `Review after ${days} days` : "",
       date: formattedFollowUpDate
     };
   }
@@ -240,13 +308,13 @@ export function convertPatientDataToPrescription(
     doctor: dynamicDoctorInfo,
     patient: {
       id: consultation.registrationNumber || consultation.registrationId?.toString() || `RX-${visitDateObj.getTime().toString().slice(-6)}`,
-      name: consultation.patientName || consultation.name || "Unknown Patient",
+      name: consultation.patientName || consultation.name || "",
       age: consultation.age || 0,
-      gender: consultation.gender || "Other",
+      gender: consultation.gender || "",
       contactNumber: consultation.mobileNumber || consultation.contactNumber || undefined,
       visitDate: formattedVisitDate,
       prescriptionId: consultation.registrationNumber || consultation.registrationId?.toString() || `RX-${visitDateObj.getTime().toString().slice(-6)}`,
-      address: consultation.patientAddress || consultation.address || ""
+      address: consultation.patientAddress || consultation.localAddress || consultation.address || ""
     },
     vitals,
     chiefComplaints,
@@ -255,7 +323,9 @@ export function convertPatientDataToPrescription(
     allergies,
     diagnosis,
     medicines,
-    testsRecommended: diagnostics,
+    testsRecommended: testsRequested,
+    investigations,
+    testsRequested,
     advice,
     followUp,
     additionalNotes: patientData.notes || consultation.quickNotes || patientData.quickNotes

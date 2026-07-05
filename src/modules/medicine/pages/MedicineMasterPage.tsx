@@ -44,25 +44,29 @@ import MedicineMasterForm from "../components/MedicineMasterForm";
 
 export default function MedicineMasterPage() {
   const { toast } = useToast();
+
   const [medicines, setMedicines] = useState<MedicineMaster[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | string | null>(null);
   const [searchText, setSearchText] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingMedicine, setEditingMedicine] = useState<MedicineMaster | null>(null);
+  const [editingMedicine, setEditingMedicine] =
+    useState<MedicineMaster | null>(null);
 
   const filteredMedicines = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
+
     if (!keyword) return medicines;
 
     return medicines.filter((medicine) =>
       [
         medicine.medicineName,
+        medicine.genericName,
         medicine.strength,
         medicine.dosageForm,
-        medicine.defaultDosage,
-        medicine.defaultFrequency,
+        medicine.dosage,
+        medicine.instructions,
         medicine.manufacturer,
       ]
         .filter(Boolean)
@@ -72,6 +76,7 @@ export default function MedicineMasterPage() {
 
   const loadMedicines = async () => {
     setLoading(true);
+
     try {
       const list = await medicineService.getMedicines();
       setMedicines(list);
@@ -89,14 +94,17 @@ export default function MedicineMasterPage() {
   useEffect(() => {
     loadMedicines();
 
-    const handleRouteChange = (e: any) => {
-      if (e.detail === '/medicine-master') {
+    const handleRouteChange = (event: any) => {
+      if (event.detail === "/medicine-master") {
         loadMedicines();
       }
     };
 
-    window.addEventListener('app-route-change', handleRouteChange);
-    return () => window.removeEventListener('app-route-change', handleRouteChange);
+    window.addEventListener("app-route-change", handleRouteChange);
+
+    return () => {
+      window.removeEventListener("app-route-change", handleRouteChange);
+    };
   }, []);
 
   const openCreateDialog = () => {
@@ -111,13 +119,19 @@ export default function MedicineMasterPage() {
 
   const handleSubmit = async (payload: MedicineMasterPayload) => {
     setSaving(true);
+
     try {
       await medicineService.saveMedicine(payload);
+
       toast({
-        title: editingMedicine ? "Medicine updated successfully." : "Medicine added successfully.",
+        title: editingMedicine
+          ? "Medicine updated successfully."
+          : "Medicine added successfully.",
       });
+
       setDialogOpen(false);
       setEditingMedicine(null);
+
       await loadMedicines();
     } catch (error: any) {
       toast({
@@ -132,6 +146,7 @@ export default function MedicineMasterPage() {
 
   const handleDelete = async (medicine: MedicineMaster) => {
     const id = getMedicineId(medicine);
+
     if (!id) {
       toast({
         title: "Unable to delete medicine",
@@ -142,13 +157,21 @@ export default function MedicineMasterPage() {
     }
 
     const confirmed = window.confirm(`Delete ${medicine.medicineName}?`);
+
     if (!confirmed) return;
 
     setDeletingId(id);
+
     try {
       await medicineService.deleteMedicine(id);
-      toast({ title: "Medicine deleted successfully." });
-      setMedicines((current) => current.filter((item) => getMedicineId(item) !== id));
+
+      toast({
+        title: "Medicine deleted successfully.",
+      });
+
+      setMedicines((current) =>
+        current.filter((item) => getMedicineId(item) !== id)
+      );
     } catch (error: any) {
       toast({
         title: "Unable to delete medicine",
@@ -168,11 +191,15 @@ export default function MedicineMasterPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
               <Pill className="h-5 w-5 text-primary-foreground" />
             </div>
+
             <div>
               <h1 className="text-lg font-semibold">Medicine Master</h1>
-              <p className="text-xs text-muted-foreground">Reusable defaults for prescriptions</p>
+              <p className="text-xs text-muted-foreground">
+                Reusable medicine data for prescriptions
+              </p>
             </div>
           </div>
+
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm" className="gap-1">
               <Link href="/patients">
@@ -180,6 +207,7 @@ export default function MedicineMasterPage() {
                 Patients
               </Link>
             </Button>
+
             <Button size="sm" className="gap-1" onClick={openCreateDialog}>
               <Plus className="h-3.5 w-3.5" />
               Add Medicine
@@ -194,20 +222,28 @@ export default function MedicineMasterPage() {
             <div>
               <CardTitle className="text-base">Medicine List</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Add, edit, delete, and keep defaults ready for prescription entry.
+                Add, edit, delete, and manage medicine master records.
               </p>
             </div>
+
             <div className="flex w-full gap-2 sm:w-auto">
               <div className="relative min-w-0 flex-1 sm:w-80">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
                 <Input
                   value={searchText}
                   onChange={(event) => setSearchText(event.target.value)}
-                  placeholder="Search medicines"
+                  placeholder="Search medicine, generic, strength"
                   className="pl-8"
                 />
               </div>
-              <Button variant="outline" size="icon" onClick={loadMedicines} disabled={loading}>
+
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={loadMedicines}
+                disabled={loading}
+              >
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -217,6 +253,7 @@ export default function MedicineMasterPage() {
               </Button>
             </div>
           </CardHeader>
+
           <CardContent>
             {loading ? (
               <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
@@ -226,8 +263,14 @@ export default function MedicineMasterPage() {
             ) : filteredMedicines.length === 0 ? (
               <div className="rounded-md border border-dashed py-12 text-center">
                 <Pill className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+
                 <p className="text-sm font-medium">No medicines found.</p>
-                <Button className="mt-4 gap-1" size="sm" onClick={openCreateDialog}>
+
+                <Button
+                  className="mt-4 gap-1"
+                  size="sm"
+                  onClick={openCreateDialog}
+                >
                   <Plus className="h-3.5 w-3.5" />
                   Add Medicine
                 </Button>
@@ -237,39 +280,63 @@ export default function MedicineMasterPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Medicine</TableHead>
-                    <TableHead>Defaults</TableHead>
+                    <TableHead>Generic</TableHead>
+                    <TableHead>Dosage</TableHead>
+                    <TableHead>Instructions</TableHead>
                     <TableHead>Manufacturer</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
                   {filteredMedicines.map((medicine, index) => {
                     const id = getMedicineId(medicine) ?? index;
+
                     return (
                       <TableRow key={String(id)}>
                         <TableCell>
-                          <div className="font-medium">{medicine.medicineName}</div>
+                          <div className="font-medium">
+                            {medicine.medicineName}
+                          </div>
+
                           <div className="text-xs text-muted-foreground">
-                            {[medicine.strength, medicine.dosageForm].filter(Boolean).join(" • ") || "No strength/form"}
+                            {[medicine.strength, medicine.dosageForm]
+                              .filter(Boolean)
+                              .join(" • ") || "No strength/form"}
                           </div>
                         </TableCell>
+
+                        <TableCell>{medicine.genericName || "-"}</TableCell>
+
                         <TableCell>
                           <div className="text-sm">
-                            {[medicine.defaultDosage, medicine.defaultFrequency, medicine.defaultDuration]
-                              .filter(Boolean)
-                              .join(" • ") || "-"}
+                            {medicine.dosage || "-"}
                           </div>
-                          {medicine.defaultInstruction ? (
-                            <div className="text-xs text-muted-foreground">{medicine.defaultInstruction}</div>
-                          ) : null}
                         </TableCell>
-                        <TableCell>{medicine.manufacturer || "-"}</TableCell>
+
                         <TableCell>
-                          <Badge variant={getMedicineActive(medicine) ? "default" : "secondary"}>
-                            {getMedicineActive(medicine) ? "Active" : "Inactive"}
+                          <div className="max-w-xs truncate text-sm">
+                            {medicine.instructions || "-"}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>{medicine.manufacturer || "-"}</TableCell>
+
+                        <TableCell>
+                          <Badge
+                            variant={
+                              getMedicineActive(medicine)
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
+                            {getMedicineActive(medicine)
+                              ? "Active"
+                              : "Inactive"}
                           </Badge>
                         </TableCell>
+
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button
@@ -281,6 +348,7 @@ export default function MedicineMasterPage() {
                               <Edit className="h-4 w-4" />
                               <span className="sr-only">Edit</span>
                             </Button>
+
                             <Button
                               type="button"
                               variant="ghost"
@@ -294,6 +362,7 @@ export default function MedicineMasterPage() {
                               ) : (
                                 <Trash2 className="h-4 w-4" />
                               )}
+
                               <span className="sr-only">Delete</span>
                             </Button>
                           </div>
@@ -311,11 +380,16 @@ export default function MedicineMasterPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editingMedicine ? "Edit Medicine" : "Add Medicine"}</DialogTitle>
+            <DialogTitle>
+              {editingMedicine ? "Edit Medicine" : "Add Medicine"}
+            </DialogTitle>
+
             <DialogDescription>
-              Medicine name is required. Defaults are used only to auto-fill prescriptions.
+              Medicine name is required. Other fields are used to auto-fill
+              prescription medicine details.
             </DialogDescription>
           </DialogHeader>
+
           <MedicineMasterForm
             initialMedicine={editingMedicine}
             saving={saving}

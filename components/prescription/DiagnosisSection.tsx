@@ -7,6 +7,9 @@ interface DiagnosisSectionProps {
   pastHistory: string[];
   allergies: string[];
   diagnosis: string;
+  showPrimary?: boolean;
+  showHistory?: boolean;
+  showDiagnosis?: boolean;
 }
 
 export const DiagnosisSection: React.FC<DiagnosisSectionProps> = ({
@@ -14,54 +17,68 @@ export const DiagnosisSection: React.FC<DiagnosisSectionProps> = ({
   clinicalFindings,
   pastHistory,
   allergies,
-  diagnosis
+  diagnosis,
+  showPrimary = true,
+  showHistory = true,
+  showDiagnosis = true,
 }) => {
+  const hasComplaints = showPrimary && chiefComplaints.length > 0;
+  const hasFindings = showPrimary && clinicalFindings.length > 0;
+  const hasHistory = showHistory && pastHistory.length > 0;
+  const hasAllergies = showHistory && allergies.length > 0;
+  const hasDiagnosis = showDiagnosis && Boolean(diagnosis.trim());
+
+  if (!hasComplaints && !hasFindings && !hasHistory && !hasAllergies && !hasDiagnosis) {
+    return null;
+  }
+
   return (
-    <div className="space-y-4">
+    <section className="space-y-4">
       {/* Two Column Layout: Chief Complaints & Clinical Findings */}
-      <div className="grid grid-cols-2 border-t border-b border-slate-300 py-3.5 gap-x-6">
-        
+      {(hasComplaints || hasFindings) && (
+      <div
+        className={`grid border-y border-slate-300 py-3.5 ${
+          hasComplaints && hasFindings ? "grid-cols-2 gap-x-6" : "grid-cols-1"
+        }`}
+      >
         {/* Left Column: Chief Complaints */}
-        <div className="border-r border-slate-300 pr-4">
+        {hasComplaints && (
+        <div className={hasFindings ? "border-r border-slate-300 pr-4" : ""}>
           <h3 className="text-[12px] font-bold text-slate-900 mb-2 uppercase tracking-wide">Chief Complaints</h3>
-          {chiefComplaints && chiefComplaints.length > 0 ? (
-            <ul className="space-y-1.5">
-              {chiefComplaints.map((item, index) => (
-                <li key={index} className="text-[11px] text-slate-800 flex items-start gap-1">
-                  <span className="font-bold">*</span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[11px] text-slate-400 italic">None reported</p>
-          )}
+          <ul className="space-y-1.5">
+            {chiefComplaints.map((item, index) => (
+              <li key={index} className="text-[11px] text-slate-800 flex items-start gap-1">
+                <span className="font-bold">*</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
         </div>
+        )}
 
         {/* Right Column: Clinical Findings */}
-        <div className="pl-2">
+        {hasFindings && (
+        <div className={hasComplaints ? "pl-2" : ""}>
           <h3 className="text-[12px] font-bold text-slate-900 mb-2 uppercase tracking-wide">Clinical Findings</h3>
-          {clinicalFindings && clinicalFindings.length > 0 ? (
-            <ul className="space-y-1.5">
-              {clinicalFindings.map((item, index) => (
-                <li key={index} className="text-[11px] text-slate-800 flex items-start gap-1">
-                  <span className="font-bold">*</span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[11px] text-slate-400 italic">None noted</p>
-          )}
+          <ul className="space-y-1.5">
+            {clinicalFindings.map((item, index) => (
+              <li key={index} className="text-[11px] text-slate-800 flex items-start gap-1">
+                <span className="font-bold">*</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
         </div>
+        )}
       </div>
+      )}
 
       {/* History and Allergies row */}
-      {(pastHistory.length > 0 || allergies.length > 0) && (
-        <div className="grid grid-cols-2 gap-4 mt-2">
+      {(hasHistory || hasAllergies) && (
+        <div className={`grid gap-4 mt-2 ${hasHistory && hasAllergies ? "grid-cols-2" : "grid-cols-1"}`}>
           {/* Past History */}
+          {hasHistory && (
           <div>
-            {pastHistory.length > 0 && (
               <>
                 <h3 className="text-[11px] font-bold text-slate-900 mb-1 uppercase tracking-wide">Past History</h3>
                 <ul className="space-y-1">
@@ -73,12 +90,12 @@ export const DiagnosisSection: React.FC<DiagnosisSectionProps> = ({
                   ))}
                 </ul>
               </>
-            )}
           </div>
-          
+          )}
+
           {/* Allergies Warning */}
+          {hasAllergies && (
           <div>
-            {allergies.length > 0 && (
               <div className="bg-red-50 border-l-2 border-red-500 p-2 rounded-r-md">
                 <div className="flex items-start gap-1.5">
                   <AlertTriangle className="w-3.5 h-3.5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -94,27 +111,25 @@ export const DiagnosisSection: React.FC<DiagnosisSectionProps> = ({
                   </div>
                 </div>
               </div>
-            )}
           </div>
+          )}
         </div>
       )}
 
       {/* Diagnosis */}
+      {hasDiagnosis && (
       <div className="mt-3">
         <h3 className="text-[12px] font-bold text-slate-900 mb-1 uppercase tracking-wide">Diagnosis:</h3>
-        {diagnosis ? (
-          <ul className="space-y-1">
-            {diagnosis.split(',').map((diag, index) => (
-              <li key={index} className="text-[11px] text-slate-800 flex items-start gap-1 font-semibold">
-                <span className="font-bold">*</span>
-                <span>{diag.trim()}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-[11px] text-slate-400 italic">None entered</p>
-        )}
+        <ul className="space-y-1">
+          {diagnosis.split(',').map((diag, index) => (
+            <li key={index} className="text-[11px] text-slate-800 flex items-start gap-1 font-semibold">
+              <span className="font-bold">*</span>
+              <span>{diag.trim()}</span>
+            </li>
+          ))}
+        </ul>
       </div>
-    </div>
+      )}
+    </section>
   );
 };

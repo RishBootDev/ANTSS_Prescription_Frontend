@@ -56,22 +56,21 @@
 }
 
 .dark {
-  /* keep dark mode consistent with white + red theme */
-  --background: oklch(0.99 0.005 30);
-  --foreground: oklch(0.26 0.02 25);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.26 0.02 25);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.26 0.02 25);
+  --background: oklch(0.16 0.014 255);
+  --foreground: oklch(0.94 0.01 250);
+  --card: oklch(0.2 0.016 255);
+  --card-foreground: oklch(0.94 0.01 250);
+  --popover: oklch(0.2 0.016 255);
+  --popover-foreground: oklch(0.94 0.01 250);
 
   --primary: oklch(0.58 0.22 25);
   --primary-foreground: oklch(0.99 0 0);
 
-  --secondary: oklch(0.96 0.01 25);
-  --secondary-foreground: oklch(0.26 0.02 25);
+  --secondary: oklch(0.25 0.018 255);
+  --secondary-foreground: oklch(0.94 0.01 250);
 
-  --muted: oklch(0.97 0.01 25);
-  --muted-foreground: oklch(0.45 0.02 25);
+  --muted: oklch(0.25 0.018 255);
+  --muted-foreground: oklch(0.7 0.018 250);
 
   --accent: oklch(0.62 0.22 25);
   --accent-foreground: oklch(0.99 0 0);
@@ -79,8 +78,8 @@
   --destructive: oklch(0.62 0.23 25);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --border: oklch(0.88 0.01 25);
-  --input: oklch(0.92 0.01 25);
+  --border: oklch(0.31 0.018 255);
+  --input: oklch(0.25 0.018 255);
   --ring: oklch(0.58 0.22 25);
 
   --chart-1: oklch(0.58 0.22 25);
@@ -156,5 +155,327 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Consultation workspace theme system ------------------------------------ */
+.consultation-shell[data-consultation-theme="light"] {
+  --primary: #2563eb;
+  --ring: #2563eb;
+  --consultation-canvas: #f4f7f9;
+  --consultation-canvas-accent: rgba(37, 99, 235, 0.055);
+  --consultation-surface: rgba(255, 255, 255, 0.96);
+  --consultation-surface-soft: #f5f8fa;
+  --consultation-surface-raised: #ffffff;
+  --consultation-text: #142033;
+  --consultation-text-soft: #637387;
+  --consultation-border: #dde5eb;
+  --consultation-row: #ffffff;
+  --consultation-shadow: 0 2px 7px rgba(15, 23, 42, 0.055);
+  --consultation-header: #ffffff;
+}
+
+.consultation-shell[data-consultation-theme="dark"] {
+  --primary: #4f8cff;
+  --ring: #4f8cff;
+  --background: oklch(0.15 0.016 255);
+  --foreground: oklch(0.94 0.01 250);
+  --card: oklch(0.2 0.018 255);
+  --card-foreground: oklch(0.94 0.01 250);
+  --popover: oklch(0.2 0.018 255);
+  --popover-foreground: oklch(0.94 0.01 250);
+  --secondary: oklch(0.25 0.02 255);
+  --secondary-foreground: oklch(0.94 0.01 250);
+  --muted: oklch(0.25 0.02 255);
+  --muted-foreground: oklch(0.72 0.018 250);
+  --border: oklch(0.31 0.02 255);
+  --input: oklch(0.25 0.02 255);
+  --consultation-canvas: #0d1320;
+  --consultation-canvas-accent: rgba(244, 63, 94, 0.09);
+  --consultation-surface: rgba(25, 34, 51, 0.96);
+  --consultation-surface-soft: #202b3d;
+  --consultation-surface-raised: #263348;
+  --consultation-text: #eef2f8;
+  --consultation-text-soft: #9eabc0;
+  --consultation-border: #334158;
+  --consultation-row: linear-gradient(135deg, #222e42 0%, #1b2638 100%);
+  --consultation-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  --consultation-header: linear-gradient(110deg, #1b2638 0%, #292230 100%);
+  color-scheme: dark;
+}
+
+.consultation-shell[data-consultation-theme="colourful"] {
+  --primary: oklch(0.58 0.2 285);
+  --ring: oklch(0.58 0.2 285);
+  --accent: oklch(0.68 0.18 185);
+  --consultation-canvas: #f5f3ff;
+  --consultation-canvas-accent: rgba(124, 58, 237, 0.12);
+  --consultation-surface: rgba(255, 255, 255, 0.96);
+  --consultation-surface-soft: #f7f5ff;
+  --consultation-surface-raised: #ffffff;
+  --consultation-text: #20203a;
+  --consultation-text-soft: #676781;
+  --consultation-border: #e3def5;
+  --consultation-row: linear-gradient(135deg, #ffffff 0%, #f6f3ff 100%);
+  --consultation-shadow: 0 18px 48px rgba(76, 29, 149, 0.09);
+  --consultation-header: linear-gradient(110deg, #f2eeff 0%, #fff6fb 50%, #ecfeff 100%);
+}
+
+.consultation-shell {
+  position: relative;
+  isolation: isolate;
+  color: var(--consultation-text);
+  background:
+    radial-gradient(circle at 8% 8%, var(--consultation-canvas-accent), transparent 26rem),
+    radial-gradient(circle at 92% 32%, color-mix(in srgb, var(--primary) 7%, transparent), transparent 30rem),
+    var(--consultation-canvas);
+  transition: background-color 220ms ease, color 220ms ease;
+}
+
+.consultation-shell::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  opacity: 0.42;
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--consultation-text-soft) 18%, transparent) 0.7px,
+    transparent 0.7px
+  );
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, black, transparent 70%);
+}
+
+.consultation-header {
+  border-color: var(--consultation-border) !important;
+  background: color-mix(in srgb, var(--consultation-surface) 90%, transparent) !important;
+  box-shadow: 0 1px 5px rgba(15, 23, 42, 0.07) !important;
+}
+
+.consultation-header .brand-mark {
+  background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 62%, #ff8a65));
+}
+
+.consultation-main {
+  animation: consultation-enter 360ms ease-out both;
+}
+
+@keyframes consultation-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.patient-summary {
+  border-color: var(--consultation-border) !important;
+  background: var(--consultation-surface) !important;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.05) !important;
+}
+
+.patient-bar {
+  background: var(--consultation-header) !important;
+}
+
+.patient-avatar {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+.emr-workspace [data-slot="card"],
+.emr-workspace nav {
+  border-color: var(--consultation-border) !important;
+  background: var(--consultation-surface) !important;
+  box-shadow: var(--consultation-shadow) !important;
+}
+
+.emr-workspace [data-slot="card"] {
+  overflow: hidden;
+  border-radius: 14px !important;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.emr-workspace [data-slot="card"]:hover {
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--consultation-border)) !important;
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--primary) 7%, rgba(15, 23, 42, 0.06)) !important;
+}
+
+.emr-workspace [data-slot="card-header"] {
+  border-color: var(--consultation-border) !important;
+  min-height: 48px;
+  background: var(--consultation-surface) !important;
+}
+
+.clinical-form-stack [data-slot="card-title"] {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.clinical-form-stack [data-slot="card-content"] {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.emr-workspace [data-slot="input"],
+.emr-workspace textarea,
+.patient-bar [data-slot="input"] {
+  border-color: var(--consultation-border) !important;
+  background: var(--consultation-surface-soft) !important;
+  color: var(--consultation-text) !important;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.025);
+}
+
+.emr-workspace [data-slot="input"]:focus,
+.emr-workspace textarea:focus {
+  border-color: var(--primary) !important;
+  background: var(--consultation-surface-raised) !important;
+}
+
+.timeline-rail nav {
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+.timeline-rail nav button,
+.timeline-rail nav > div {
+  min-height: 39px;
+}
+
+.timeline-rail nav button:hover {
+  background: color-mix(in srgb, var(--primary) 7%, transparent) !important;
+  color: var(--primary) !important;
+}
+
+.timeline-rail nav .bg-primary\/10 {
+  background: color-mix(in srgb, var(--primary) 9%, transparent) !important;
+  color: var(--primary) !important;
+}
+
+.vitals-rail [data-slot="card"] {
+  box-shadow: none !important;
+}
+
+.vitals-rail [data-slot="card-content"] {
+  padding: 12px !important;
+}
+
+.vital-tile {
+  border: 0 !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+}
+
+.consultation-shell .vital-tile.vital-tile-mint {
+  background: #eafbf3 !important;
+}
+
+.consultation-shell .vital-tile.vital-tile-amber {
+  background: #fff8df !important;
+}
+
+.vital-tile [data-slot="input"] {
+  border-color: color-mix(in srgb, var(--consultation-text-soft) 18%, transparent) !important;
+  background: color-mix(in srgb, #ffffff 72%, transparent) !important;
+}
+
+.vital-tile label {
+  color: #526174 !important;
+}
+
+.consultation-shell[data-consultation-theme="dark"] .vital-tile-mint {
+  background: rgba(16, 185, 129, 0.12) !important;
+}
+
+.consultation-shell[data-consultation-theme="dark"] .vital-tile-amber {
+  background: rgba(245, 158, 11, 0.13) !important;
+}
+
+.consultation-footer {
+  border-color: var(--consultation-border) !important;
+  background: color-mix(in srgb, var(--consultation-surface) 94%, transparent) !important;
+  box-shadow: 0 -2px 10px rgba(15, 23, 42, 0.055) !important;
+}
+
+.consultation-footer #print-prescription-action {
+  border-radius: 9px;
+  background: var(--primary) !important;
+}
+
+.emr-workspace [data-slot="card-content"] > div > div > div[class*="border"],
+.emr-workspace [data-slot="card-content"] div[class*="from-white"] {
+  border-color: var(--consultation-border) !important;
+  background: var(--consultation-row) !important;
+}
+
+.consultation-shell .bg-white,
+.consultation-shell .bg-white\/95 {
+  background-color: var(--consultation-surface) !important;
+}
+
+.consultation-shell .bg-slate-50,
+.consultation-shell .bg-slate-50\/70,
+.consultation-shell .bg-slate-50\/80,
+.consultation-shell .bg-slate-100,
+.consultation-shell .bg-slate-100\/80 {
+  background-color: var(--consultation-surface-soft) !important;
+}
+
+.consultation-shell .border-slate-100,
+.consultation-shell .border-slate-200,
+.consultation-shell .border-slate-200\/80,
+.consultation-shell .border-slate-300 {
+  border-color: var(--consultation-border) !important;
+}
+
+.consultation-shell .text-slate-950,
+.consultation-shell .text-slate-900,
+.consultation-shell .text-slate-800,
+.consultation-shell .text-slate-700 {
+  color: var(--consultation-text) !important;
+}
+
+.consultation-shell .text-slate-600,
+.consultation-shell .text-slate-500,
+.consultation-shell .text-slate-400 {
+  color: var(--consultation-text-soft) !important;
+}
+
+.theme-swatch-light {
+  border: 1px solid #e2e8f0;
+  color: #ea580c;
+  background: #fff7ed;
+}
+
+.theme-swatch-dark {
+  color: #c4b5fd;
+  background: #202b3d;
+}
+
+.theme-swatch-colourful {
+  color: #7c3aed;
+  background: linear-gradient(135deg, #ede9fe, #cffafe);
+}
+
+.theme-menu-dark {
+  border-color: var(--consultation-border);
+  color: #eef2f8;
+  background: #1b2638;
+}
+
+.theme-menu-colourful {
+  border-color: #e3def5;
+  color: #20203a;
+  background: #ffffff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .consultation-main {
+    animation: none;
   }
 }

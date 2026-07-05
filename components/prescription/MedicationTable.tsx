@@ -6,6 +6,7 @@ interface MedicationTableProps {
 }
 
 const formatFrequency = (frequency: string) => {
+  if (!frequency) return "";
   const normalized = frequency.trim().toLowerCase();
 
   const frequencyMap: Record<string, string> = {
@@ -28,6 +29,7 @@ const formatFrequency = (frequency: string) => {
 };
 
 const calculateTotalQty = (frequency: string, duration: string) => {
+  if (!frequency || !duration) return null;
   // Try to parse days out of duration (e.g., "5 days" or "5")
   const daysMatch = duration.match(/(\d+)\s*day/i) || duration.match(/^(\d+)$/);
   if (!daysMatch) return null;
@@ -54,11 +56,17 @@ const calculateTotalQty = (frequency: string, duration: string) => {
 };
 
 export const MedicationTable: React.FC<MedicationTableProps> = ({ medicines }) => {
+  const printableMedicines = (medicines || []).filter((medicine) =>
+    medicine.genericName?.trim()
+  );
+
+  if (printableMedicines.length === 0) return null;
+
   return (
-    <div className="mt-3">
+    <section className="mt-4">
       <div className="text-xl font-bold text-slate-900 font-serif italic mb-2.5">Rx</div>
       
-      <table className="w-full border-collapse">
+      <table className="prescription-medicine-table w-full border-collapse">
         <thead>
           <tr className="border-t border-b border-slate-400 text-[11px] font-bold text-slate-900">
             <th className="text-left py-2 w-[55%]">Medicine Name</th>
@@ -67,8 +75,8 @@ export const MedicationTable: React.FC<MedicationTableProps> = ({ medicines }) =
           </tr>
         </thead>
         <tbody>
-          {medicines && medicines.length > 0 ? (
-            medicines.map((med, index) => {
+          {
+            printableMedicines.map((med, index) => {
               const totalQty = med.quantity || calculateTotalQty(med.frequency, med.duration);
               return (
                 <tr key={med.id || index} className="border-b border-slate-200 text-[11px] text-slate-800 align-top">
@@ -79,10 +87,12 @@ export const MedicationTable: React.FC<MedicationTableProps> = ({ medicines }) =
                   
                   {/* Dosage Column */}
                   <td className="py-2.5 pr-4">
-                    {med.dosage && med.dosage !== "---" && (
+                    {med.dosage && (
                       <div className="font-bold text-slate-900">{med.dosage}</div>
                     )}
-                    <div className="font-semibold text-slate-700">{formatFrequency(med.frequency)}</div>
+                    {med.frequency && (
+                      <div className="font-semibold text-slate-700">{formatFrequency(med.frequency)}</div>
+                    )}
                     {med.instructions && (
                       <div className="text-[11px] text-slate-600 mt-0.5">
                         {med.instructions}
@@ -92,25 +102,21 @@ export const MedicationTable: React.FC<MedicationTableProps> = ({ medicines }) =
                   
                   {/* Duration Column */}
                   <td className="py-2.5">
-                    <div className="font-semibold text-slate-900">{med.duration}</div>
-                    {med.quantity && (
+                    {med.duration && (
+                      <div className="font-semibold text-slate-900">{med.duration}</div>
+                    )}
+                    {totalQty && (
                       <div className="text-[11px] text-slate-600 mt-0.5">
-                        Qty: {med.quantity}
+                        Qty: {totalQty}
                       </div>
                     )}
                   </td>
                 </tr>
               );
             })
-          ) : (
-            <tr>
-              <td colSpan={3} className="py-4 text-center text-[11px] text-slate-400 italic">
-                No medicines prescribed
-              </td>
-            </tr>
-          )}
+          }
         </tbody>
       </table>
-    </div>
+    </section>
   );
 };

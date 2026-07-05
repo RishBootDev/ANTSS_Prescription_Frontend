@@ -16,7 +16,7 @@ export const PrescriptionFooter: React.FC<PrescriptionFooterProps> = ({ doctor, 
     : "https://example.com";
 
   return (
-    <div className="mt-8">
+    <footer className="prescription-footer mt-8">
       {/* Footer Content */}
       <div className="flex justify-between items-end mb-6">
         {/* Left Side: QR Code */}
@@ -54,6 +54,6 @@ export const PrescriptionFooter: React.FC<PrescriptionFooterProps> = ({ doctor, 
           Substitute with equivalent Generics as required. • This is a digitally signed prescription.
         </p>
       </div>
-    </div>
+    </footer>
   );
 };

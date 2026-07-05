@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import type React from "react";
 import { useRouter } from "next/navigation";
@@ -241,15 +243,17 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
 
     if (!clinicId && !hospitalId) {
       try {
-        if (user?.userType === "DOCTOR" || user?.role === "DOCTOR") {
-          const profileJson = await doctorService.getDoctorProfile();
-          if (profileJson.success && profileJson.data) {
-            clinicId = profileJson.data.clinicId;
-            hospitalId = profileJson.data.hospitalId;
+        if (user?.userType === "DOCTOR" || user?.role === "DOCTOR" || user?.role === "ROLE_DOCTOR") {
+          const profileResponse = await doctorService.getDoctorProfile();
+          const profile = profileResponse?.data ?? profileResponse;
+          if (profile) {
+            clinicId = profile.clinicId;
+            hospitalId = profile.hospitalId;
           }
         } else {
-          const doctorsJson = await doctorService.listDoctors();
-          const doctor = doctorsJson.success && doctorsJson.data?.length ? doctorsJson.data[0] : null;
+          const doctorsResponse = await doctorService.listDoctors();
+          const doctors = doctorsResponse?.data ?? doctorsResponse;
+          const doctor = Array.isArray(doctors) ? doctors[0] : null;
           clinicId = doctor?.clinicId;
           hospitalId = doctor?.hospitalId;
         }
@@ -301,7 +305,8 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
       if (clinicId) registrationPayload.clinicId = clinicId;
       if (hospitalId) registrationPayload.hospitalId = hospitalId;
 
-      const regObj = await patientService.createRegistration(registrationPayload);
+      const registrationResponse = await patientService.createRegistration(registrationPayload);
+      const regObj = (registrationResponse as any)?.data ?? registrationResponse;
       const patient = regObj.patient;
 
       try {
@@ -374,7 +379,7 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
+        <Button type="button" className="gap-2">
           <Plus className="h-4 w-4" />
           Register Patient
         </Button>
@@ -548,10 +553,10 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
           </section>
 
           <div className="flex justify-end gap-3 border-t pt-4">
-            <Button variant="outline" onClick={resetAndClose}>
+            <Button type="button" variant="outline" onClick={resetAndClose}>
               Cancel
             </Button>
-            <Button onClick={handleRegisterPatient} disabled={isRegistering || !registrationForm.name || !registrationForm.contactNumber}>
+            <Button type="button" onClick={handleRegisterPatient} disabled={isRegistering}>
               {isRegistering ? (
                 <span className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" /> Registering...

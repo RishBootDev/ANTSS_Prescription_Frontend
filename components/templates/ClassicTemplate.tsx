@@ -18,8 +18,11 @@ export default function ClassicTemplate(props: BaseTemplateProps) {
         <button
           type="button"
           onClick={helpers.handlePrintPrescription}
-          className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors shadow-sm text-sm font-medium"
-          title="Print Prescription"
+          aria-disabled={props.canPrint === false}
+          className={`flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors shadow-sm text-sm font-medium ${
+            props.canPrint === false ? "cursor-not-allowed opacity-55" : ""
+          }`}
+          title={props.canPrint === false ? "Save changes before printing" : "Print Prescription"}
         >
           <Printer className="w-4 h-4" />
           Print Prescription

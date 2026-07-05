@@ -30,15 +30,15 @@ const emptyPatientData: PatientData = {
   medicalHistory: null,
 
   quickNotes: null,
-  complaints: [],
-  generalExaminations: [],
-  pastMedicalHistories: [],
-  diagnoses: [],
+  complaints: [{ id: "comp-new", complaintName: "", complaintFrequency: null, severity: null, complaintDuration: null }],
+  generalExaminations: [{ id: "ge-new", finding: "", status: "", severity: "", notes: "" }],
+  pastMedicalHistories: [{ id: "pmh-new", disease: "", duration: "", status: "", notes: "" }],
+  diagnoses: [{ id: "diag-new", diagnosisName: "", diagnosisCode: null, diagnosisDuration: null }],
 
   advice: null,
-  testsRequested: [],
+  testsRequested: [{ id: "test-new", name: "", notes: "", documentUrl: null, documentFileName: null }],
   nextVisit: null,
-  investigations: [],
+  investigations: [{ id: "inv-new", test: "", value: "", notes: "", documentUrl: null, documentFileName: null }],
   payment: null,
   followUp: null,
 
@@ -46,7 +46,7 @@ const emptyPatientData: PatientData = {
   emergencyContact: null,
   insuranceId: null,
 
-  medicines: [],
+  medicines: [{ id: "med-new", medicineName: "", strength: "", dosage: "", frequency: "", duration: "", instruction: "", quantity: "1" }],
   documents: [],
 }
 

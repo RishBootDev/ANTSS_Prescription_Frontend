@@ -231,6 +231,8 @@ export interface MappedPrescription {
   diagnosis: string;
   medicines: MappedMedicine[];
   testsRecommended: MappedTest[];
+  investigations?: MappedTest[];
+  testsRequested?: MappedTest[];
   advice: string[];
   followUp?: {
     days: number;

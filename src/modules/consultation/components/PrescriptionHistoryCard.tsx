@@ -71,7 +71,7 @@ export function PrescriptionHistoryCard({
                 key={item.prescriptionId}
                 onClick={() => handleLoadPrescription(item)}
                 className={`p-3 rounded-lg border text-sm transition-colors cursor-pointer flex flex-col justify-between gap-2 ${
-                  viewingPrescriptionId === item.prescriptionId ? "border-sky-500 bg-sky-50/50" : "border-slate-100 hover:bg-slate-50"
+                  viewingPrescriptionId === item.prescriptionId ? "border-primary bg-primary/5" : "border-slate-100 hover:bg-slate-50"
                 }`}
               >
                 <div className="flex justify-between items-start">
@@ -93,7 +93,7 @@ export function PrescriptionHistoryCard({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-slate-400 hover:text-sky-600"
+                      className="h-7 w-7 text-slate-400 hover:text-primary"
                       title="View Prescription"
                     >
                       <Eye className="h-4 w-4" />

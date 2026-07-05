@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+
 import {
   MedicineMaster,
   MedicineMasterPayload,
@@ -37,12 +38,11 @@ const DOSAGE_FORMS = [
 
 type MedicineFormState = {
   medicineName: string;
+  genericName: string;
   strength: string;
   dosageForm: string;
-  defaultDosage: string;
-  defaultFrequency: string;
-  defaultDuration: string;
-  defaultInstruction: string;
+  dosage: string;
+  instructions: string;
   manufacturer: string;
   active: boolean;
 };
@@ -58,12 +58,11 @@ type Props = {
 
 const emptyState = (defaultName = ""): MedicineFormState => ({
   medicineName: defaultName,
+  genericName: "",
   strength: "",
   dosageForm: "Tablet",
-  defaultDosage: "",
-  defaultFrequency: "",
-  defaultDuration: "",
-  defaultInstruction: "",
+  dosage: "",
+  instructions: "",
   manufacturer: "",
   active: true,
 });
@@ -78,15 +77,13 @@ export function buildMedicinePayload(
     id,
     medicineId: id,
     medicineName: state.medicineName.trim(),
+    genericName: state.genericName.trim(),
     strength: state.strength.trim(),
     dosageForm: state.dosageForm,
-    defaultDosage: state.defaultDosage.trim(),
-    defaultFrequency: state.defaultFrequency.trim(),
-    defaultDuration: state.defaultDuration.trim(),
-    defaultInstruction: state.defaultInstruction.trim(),
+    dosage: state.dosage.trim(),
+    instructions: state.instructions.trim(),
     manufacturer: state.manufacturer.trim(),
     active: state.active,
-    activeStatus: state.active,
   };
 }
 
@@ -98,19 +95,21 @@ export default function MedicineMasterForm({
   onSubmit,
   onCancel,
 }: Props) {
-  const [form, setForm] = useState<MedicineFormState>(() => emptyState(defaultName));
+  const [form, setForm] = useState<MedicineFormState>(() =>
+    emptyState(defaultName)
+  );
+
   const [nameError, setNameError] = useState("");
 
   useEffect(() => {
     if (initialMedicine) {
       setForm({
         medicineName: initialMedicine.medicineName || "",
+        genericName: initialMedicine.genericName || "",
         strength: initialMedicine.strength || "",
         dosageForm: initialMedicine.dosageForm || "Tablet",
-        defaultDosage: initialMedicine.defaultDosage || "",
-        defaultFrequency: initialMedicine.defaultFrequency || "",
-        defaultDuration: initialMedicine.defaultDuration || "",
-        defaultInstruction: initialMedicine.defaultInstruction || "",
+        dosage: initialMedicine.dosage || "",
+        instructions: initialMedicine.instructions || "",
         manufacturer: initialMedicine.manufacturer || "",
         active: getMedicineActive(initialMedicine),
       });
@@ -124,12 +123,19 @@ export default function MedicineMasterForm({
     field: K,
     value: MedicineFormState[K]
   ) => {
-    setForm((current) => ({ ...current, [field]: value }));
-    if (field === "medicineName") setNameError("");
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+
+    if (field === "medicineName") {
+      setNameError("");
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     if (!form.medicineName.trim()) {
       setNameError("Medicine name is required.");
       return;
@@ -146,11 +152,27 @@ export default function MedicineMasterForm({
           <Input
             id="medicineName"
             value={form.medicineName}
-            onChange={(event) => updateField("medicineName", event.target.value)}
+            onChange={(event) =>
+              updateField("medicineName", event.target.value)
+            }
             aria-invalid={Boolean(nameError)}
             placeholder="e.g., Paracetamol"
           />
-          {nameError ? <p className="text-xs text-destructive">{nameError}</p> : null}
+          {nameError ? (
+            <p className="text-xs text-destructive">{nameError}</p>
+          ) : null}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="genericName">Generic Name</Label>
+          <Input
+            id="genericName"
+            value={form.genericName}
+            onChange={(event) =>
+              updateField("genericName", event.target.value)
+            }
+            placeholder="e.g., Acetaminophen"
+          />
         </div>
 
         <div className="space-y-1.5">
@@ -183,41 +205,23 @@ export default function MedicineMasterForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="defaultDosage">Default Dosage</Label>
+          <Label htmlFor="dosage">Dosage</Label>
           <Input
-            id="defaultDosage"
-            value={form.defaultDosage}
-            onChange={(event) => updateField("defaultDosage", event.target.value)}
+            id="dosage"
+            value={form.dosage}
+            onChange={(event) => updateField("dosage", event.target.value)}
             placeholder="e.g., 1 tablet"
           />
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="defaultFrequency">Default Frequency</Label>
+        <div className="space-y-1.5 md:col-span-2">
+          <Label htmlFor="instructions">Instructions</Label>
           <Input
-            id="defaultFrequency"
-            value={form.defaultFrequency}
-            onChange={(event) => updateField("defaultFrequency", event.target.value)}
-            placeholder="e.g., BD"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="defaultDuration">Default Duration</Label>
-          <Input
-            id="defaultDuration"
-            value={form.defaultDuration}
-            onChange={(event) => updateField("defaultDuration", event.target.value)}
-            placeholder="e.g., 5 days"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="defaultInstruction">Default Instruction</Label>
-          <Input
-            id="defaultInstruction"
-            value={form.defaultInstruction}
-            onChange={(event) => updateField("defaultInstruction", event.target.value)}
+            id="instructions"
+            value={form.instructions}
+            onChange={(event) =>
+              updateField("instructions", event.target.value)
+            }
             placeholder="e.g., after food"
           />
         </div>
@@ -227,7 +231,9 @@ export default function MedicineMasterForm({
           <Input
             id="manufacturer"
             value={form.manufacturer}
-            onChange={(event) => updateField("manufacturer", event.target.value)}
+            onChange={(event) =>
+              updateField("manufacturer", event.target.value)
+            }
             placeholder="Manufacturer"
           />
         </div>
@@ -246,10 +252,16 @@ export default function MedicineMasterForm({
 
       <div className="flex justify-end gap-2">
         {onCancel ? (
-          <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={saving}
+          >
             Cancel
           </Button>
         ) : null}
+
         <Button type="submit" disabled={saving}>
           {saving ? "Saving..." : submitLabel}
         </Button>

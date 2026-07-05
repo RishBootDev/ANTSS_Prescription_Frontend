@@ -62,10 +62,10 @@ export default function PatientPage({
   };
 
   return (
-    <div className="bg-white">
-      <div className="flex min-h-[68px] flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5 lg:px-6">
+    <div className="patient-bar bg-white">
+      <div className="flex min-h-[72px] flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5 lg:px-6">
         <div className="flex min-w-[250px] items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+          <div className="patient-avatar flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <UserRound className="h-5 w-5" />
           </div>
           <div className="min-w-0">
@@ -125,7 +125,7 @@ export default function PatientPage({
         <div className="border-l border-slate-200 pl-5">
           <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Visit date</p>
           <div className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5 text-blue-500" />
+            <Calendar className="h-3.5 w-3.5 text-primary" />
             <Input
               ref={(el) => registerFieldRef?.("visitDate", el)}
               type="date"

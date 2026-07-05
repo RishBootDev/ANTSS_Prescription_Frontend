@@ -15,10 +15,15 @@ export const FollowUpSection: React.FC<FollowUpSectionProps> = ({
   followUp,
   additionalNotes
 }) => {
+  const hasAdvice = advice && advice.length > 0;
+  const hasAdditionalNotes = Boolean(additionalNotes?.trim());
+
+  if (!hasAdvice && !hasAdditionalNotes && !followUp) return null;
+
   return (
-    <div className="space-y-4">
+    <section className="prescription-section space-y-4">
       {/* Advice Section */}
-      {advice && advice.length > 0 && (
+      {hasAdvice && (
         <div className="mt-5">
           <h3 className="text-[12px] font-bold text-slate-900 mb-1.5 uppercase tracking-wide">Advice / Instructions:</h3>
           <ul className="space-y-1">
@@ -33,7 +38,7 @@ export const FollowUpSection: React.FC<FollowUpSectionProps> = ({
       )}
 
       {/* Additional Notes */}
-      {additionalNotes && (
+      {hasAdditionalNotes && (
         <div className="mt-4 p-2 bg-slate-50 border border-slate-200 rounded text-[11px] text-slate-700">
           <span className="font-bold block text-slate-900 mb-0.5 uppercase tracking-wide text-[10px]">Additional Notes</span>
           <p className="whitespace-pre-line leading-relaxed">{additionalNotes}</p>
@@ -46,6 +51,6 @@ export const FollowUpSection: React.FC<FollowUpSectionProps> = ({
           <span>Follow Up: {followUp.date || `after ${followUp.days} days`} {followUp.note ? `(${followUp.note})` : ""}</span>
         </div>
       )}
-    </div>
+    </section>
   );
 };

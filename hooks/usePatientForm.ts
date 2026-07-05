@@ -35,10 +35,19 @@ export interface BaseTemplateProps {
     prescriptionId: number;
     createdAt?: string;
   }>;
+  canPrint?: boolean;
+  onPrintBlocked?: () => void;
 }
 
 export function usePatientForm(props: BaseTemplateProps) {
-  const { data, onChange, highlightedFields = [], mic } = props;
+  const {
+    data,
+    onChange,
+    highlightedFields = [],
+    mic,
+    canPrint = true,
+    onPrintBlocked,
+  } = props;
 
   const updateField = <K extends keyof PatientData>(
     field: K,
@@ -89,23 +98,21 @@ export function usePatientForm(props: BaseTemplateProps) {
   };
 
   const applyMedicineMaster = (id: string, medicine: MedicineMaster) => {
-    updateField(
-      "medicines",
-      data.medicines.map((m) =>
-        m.id === id
-          ? {
-              ...m,
-              medicineName: medicine.medicineName || "",
-              strength: medicine.strength || "",
-              dosage: medicine.defaultDosage || "",
-              frequency: medicine.defaultFrequency || "",
-              duration: medicine.defaultDuration || "",
-              instruction: medicine.defaultInstruction || "",
-            }
-          : m
-      )
-    );
-  };
+  updateField(
+    "medicines",
+    (data.medicines || []).map((m) =>
+      m.id === id
+        ? {
+            ...m,
+            medicineName: medicine.medicineName || "",
+            strength: medicine.strength || "",
+            dosage: medicine.dosage || "",
+            instruction: medicine.instructions || "",
+          }
+        : m
+    )
+  );
+};
 
   const removeMedicine = (id: string) => {
     updateField(
@@ -408,6 +415,11 @@ export function usePatientForm(props: BaseTemplateProps) {
 
   /* ---------- print handler ---------- */
   const handlePrintPrescription = () => {
+    if (!canPrint) {
+      onPrintBlocked?.();
+      return;
+    }
+
     try {
       localStorage.setItem("prescriptionData", JSON.stringify(data));
     } catch (e) {

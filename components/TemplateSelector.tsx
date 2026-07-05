@@ -27,7 +27,7 @@ const TEMPLATES: {
     id: "EMR",
     name: "Modern EMR",
     description: "Standard two-column hospital layout. All clinical notes on the left, orders and prescriptions on the right.",
-    icon: <LayoutDashboard className="w-8 h-8 text-blue-500" />,
+    icon: <LayoutDashboard className="w-8 h-8 text-primary" />,
     recommended: "Hospitals & Multi-specialty Clinics",
   },
   {

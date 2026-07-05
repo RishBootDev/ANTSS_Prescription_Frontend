@@ -20,6 +20,261 @@ export interface PrescriptionViewProps {
   prescriptionId?: number; // Option 2: Dynamic API loading
 }
 
+type PrescriptionBlock = {
+  key: string;
+  node: React.ReactNode;
+  isFooter?: boolean;
+};
+
+function PaginatedPrescriptionDocument({
+  prescription,
+  prescriptionId,
+}: {
+  prescription: MappedPrescription;
+  prescriptionId?: number;
+}) {
+  const medicineChunks = React.useMemo(() => {
+    const medicines = prescription.medicines || [];
+    const chunks = [];
+    for (let index = 0; index < medicines.length; index += 6) {
+      chunks.push(medicines.slice(index, index + 6));
+    }
+    return chunks;
+  }, [prescription.medicines]);
+
+  const blocks = React.useMemo<PrescriptionBlock[]>(() => {
+    const clinicalBlocks: PrescriptionBlock[] = [
+      {
+        key: "patient-header",
+        node: (
+          <>
+            <PrescriptionHeader clinic={prescription.clinic} doctor={prescription.doctor} />
+            <div className="my-3 border-b border-slate-300" />
+            <PatientInformation patient={prescription.patient} vitals={prescription.vitals} />
+            <div className="my-3 border-b border-slate-300" />
+          </>
+        ),
+      },
+      {
+        key: "complaints-and-findings",
+        node: (
+          <DiagnosisSection
+            chiefComplaints={prescription.chiefComplaints}
+            clinicalFindings={prescription.clinicalFindings || []}
+            pastHistory={prescription.pastHistory}
+            allergies={prescription.allergies}
+            diagnosis={prescription.diagnosis}
+            showHistory={false}
+            showDiagnosis={false}
+          />
+        ),
+      },
+      {
+        key: "medical-history",
+        node: (
+          <DiagnosisSection
+            chiefComplaints={prescription.chiefComplaints}
+            clinicalFindings={prescription.clinicalFindings || []}
+            pastHistory={prescription.pastHistory}
+            allergies={prescription.allergies}
+            diagnosis={prescription.diagnosis}
+            showPrimary={false}
+            showDiagnosis={false}
+          />
+        ),
+      },
+      {
+        key: "diagnosis",
+        node: (
+          <DiagnosisSection
+            chiefComplaints={prescription.chiefComplaints}
+            clinicalFindings={prescription.clinicalFindings || []}
+            pastHistory={prescription.pastHistory}
+            allergies={prescription.allergies}
+            diagnosis={prescription.diagnosis}
+            showPrimary={false}
+            showHistory={false}
+          />
+        ),
+      },
+      {
+        key: "tests",
+        node: (
+          <TestRecommendations
+            investigations={prescription.investigations}
+            testsRequested={
+              prescription.testsRequested?.length
+                ? prescription.testsRequested
+                : prescription.testsRecommended
+            }
+          />
+        ),
+      },
+      {
+        key: "advice",
+        node: (
+          <FollowUpSection
+            advice={prescription.advice}
+            additionalNotes={prescription.additionalNotes}
+          />
+        ),
+      },
+      ...medicineChunks.map((medicines, index) => ({
+        key: `medicines-${index}`,
+        node: <MedicationTable medicines={medicines} />,
+      })),
+      {
+        key: "follow-up",
+        node: <FollowUpSection advice={[]} followUp={prescription.followUp} />,
+      },
+      {
+        key: "footer",
+        isFooter: true,
+        node: <PrescriptionFooter doctor={prescription.doctor} prescriptionId={prescriptionId} />,
+      },
+    ];
+
+    return clinicalBlocks;
+  }, [medicineChunks, prescription, prescriptionId]);
+
+  const measureRef = React.useRef<HTMLDivElement | null>(null);
+  const capacityRef = React.useRef<HTMLDivElement | null>(null);
+  const blockRefs = React.useRef<Array<HTMLDivElement | null>>([]);
+  const [pages, setPages] = React.useState<number[][]>([
+    blocks.map((_, index) => index),
+  ]);
+
+  React.useLayoutEffect(() => {
+    const calculatePages = () => {
+      const capacity = capacityRef.current?.clientHeight || 0;
+      if (!capacity) return;
+
+      const heights = blocks.map(
+        (_, index) => blockRefs.current[index]?.getBoundingClientRect().height || 0
+      );
+      const nextPages: number[][] = [];
+      let currentPage: number[] = [];
+      let currentHeight = 0;
+
+      heights.forEach((height, index) => {
+        if (height <= 1) return;
+
+        if (currentPage.length > 0 && currentHeight + height > capacity) {
+          nextPages.push(currentPage);
+          currentPage = [];
+          currentHeight = 0;
+        }
+
+        currentPage.push(index);
+        currentHeight += height;
+      });
+
+      if (currentPage.length > 0) nextPages.push(currentPage);
+      if (nextPages.length === 0) nextPages.push([]);
+
+      if (
+        nextPages.length > 1 &&
+        nextPages[0].length === 1 &&
+        nextPages[1].length > 0
+      ) {
+        const firstPageHeight = heights[nextPages[0][0]];
+        const candidate = nextPages[1][0];
+        if (firstPageHeight + heights[candidate] <= capacity) {
+          nextPages[0].push(candidate);
+          nextPages[1].shift();
+          if (nextPages[1].length === 0) nextPages.splice(1, 1);
+        }
+      }
+
+      const footerIndex = blocks.findIndex((block) => block.isFooter);
+      const lastPage = nextPages[nextPages.length - 1];
+      if (
+        footerIndex >= 0 &&
+        lastPage.length === 1 &&
+        lastPage[0] === footerIndex &&
+        nextPages.length > 1
+      ) {
+        const previousPage = nextPages[nextPages.length - 2];
+        let lastPageHeight = heights[footerIndex];
+
+        while (previousPage.length > 1) {
+          const candidate = previousPage[previousPage.length - 1];
+          if (lastPageHeight + heights[candidate] > capacity) break;
+          previousPage.pop();
+          lastPage.unshift(candidate);
+          lastPageHeight += heights[candidate];
+        }
+      }
+
+      setPages((current) =>
+        JSON.stringify(current) === JSON.stringify(nextPages) ? current : nextPages
+      );
+    };
+
+    calculatePages();
+    const observer = new ResizeObserver(calculatePages);
+    if (measureRef.current) observer.observe(measureRef.current);
+    return () => observer.disconnect();
+  }, [blocks]);
+
+  return (
+    <>
+      <div
+        ref={measureRef}
+        aria-hidden="true"
+        className="pointer-events-none fixed -left-[10000px] top-0 w-[180mm] opacity-0"
+      >
+        <div ref={capacityRef} className="h-[267mm]" />
+        {blocks.map((block, index) => (
+          <div
+            key={`measure-${block.key}`}
+            ref={(element) => {
+              blockRefs.current[index] = element;
+            }}
+          >
+            {block.node}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-8 print:block">
+        {pages.map((page, pageIndex) => (
+          <article
+            key={`page-${pageIndex}`}
+            className="prescription-page relative flex h-[297mm] w-[210mm] flex-col overflow-hidden bg-white p-[15mm] font-sans text-black shadow-2xl print:h-[297mm] print:w-[210mm] print:shadow-none"
+          >
+            <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center overflow-hidden">
+              <img
+                src="/_DOCTOR-removebg-preview.png"
+                alt=""
+                className="w-[60%] object-contain opacity-[0.08] print:opacity-[0.08]"
+              />
+            </div>
+
+            <span className="absolute right-[8mm] top-[6mm] z-20 text-[8px] font-medium text-slate-400">
+              Page {pageIndex + 1} of {pages.length}
+            </span>
+
+            <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+              {page.map((blockIndex) => {
+                const block = blocks[blockIndex];
+                return (
+                  <div
+                    key={block.key}
+                    className={block.isFooter ? "mt-auto" : ""}
+                  >
+                    {block.node}
+                  </div>
+                );
+              })}
+            </div>
+          </article>
+        ))}
+      </div>
+    </>
+  );
+}
+
 export default function PrescriptionView({ prescription: directPrescription, prescriptionId }: PrescriptionViewProps) {
   // Use our custom hook if prescriptionId is provided
   const { 
@@ -173,70 +428,17 @@ export default function PrescriptionView({ prescription: directPrescription, pre
         </button>
       </div>
 
-      {/* Main A4 Document Container */}
-      <div className="w-[210mm] min-h-[297mm] bg-white text-black font-sans shadow-2xl p-[15mm] flex flex-col justify-between relative print:shadow-none print:w-full print:h-full print:p-0 print:m-0 print:min-h-0 print:overflow-visible">
-        
-        {/* Background Image Watermark */}
-        <div className="absolute inset-0 pointer-events-none flex justify-center items-center z-0 overflow-hidden">
-          <img 
-            src="/_DOCTOR-removebg-preview.png" 
-            alt="Watermark" 
-            className="w-[60%] opacity-[0.08] print:opacity-[0.08] object-contain"
-          />
-        </div>
-
-        {/* Top & Body Container */}
-        <div className="relative z-10">
-          {/* Header Block */}
-          <PrescriptionHeader clinic={prescription.clinic} doctor={prescription.doctor} />
-
-          {/* Thin grey separator */}
-          <div className="border-b border-slate-300 my-3" />
-
-          {/* Patient Information Block */}
-          <PatientInformation patient={prescription.patient} vitals={prescription.vitals} />
-
-          {/* Thin grey separator */}
-          <div className="border-b border-slate-300 my-3" />
-
-          {/* Two Column Layout: Chief Complaints, Clinical Findings, pastHistory, allergies, diagnosis */}
-          <DiagnosisSection 
-            chiefComplaints={prescription.chiefComplaints} 
-            clinicalFindings={prescription.clinicalFindings || []} 
-            pastHistory={prescription.pastHistory} 
-            allergies={prescription.allergies} 
-            diagnosis={prescription.diagnosis} 
-          />
-
-          {/* Thin grey separator */}
-          <div className="border-b border-slate-300 my-4" />
-
-          {/* Rx Section (Prescribed Medicines Table) */}
-          <MedicationTable medicines={prescription.medicines} />
-
-          {/* Test Recommendations Section */}
-          <TestRecommendations tests={prescription.testsRecommended} />
-          
-          {/* Advice & Follow Up Section */}
-          <FollowUpSection 
-            advice={prescription.advice} 
-            followUp={prescription.followUp} 
-            additionalNotes={prescription.additionalNotes} 
-          />
-        </div>
-
-        {/* Bottom Area (Signature & Footer Stamp) */}
-        <div className="relative z-10">
-          <PrescriptionFooter doctor={prescription.doctor} prescriptionId={prescriptionId} />
-        </div>
-      </div>
+      <PaginatedPrescriptionDocument
+        prescription={prescription}
+        prescriptionId={prescriptionId}
+      />
 
       {/* Global CSS style overrides for accurate A4 print layouts */}
       <style jsx global>{`
         @media print {
           @page {
             size: A4;
-            margin: 15mm;
+            margin: 0;
           }
           
           /* Enforce backgrounds/colors */
@@ -256,6 +458,36 @@ export default function PrescriptionView({ prescription: directPrescription, pre
           
           .no-print {
             display: none !important;
+          }
+
+          .prescription-section,
+          .prescription-footer {
+            break-inside: avoid-page;
+            page-break-inside: avoid;
+          }
+
+          .prescription-medicine-table thead {
+            display: table-header-group;
+          }
+
+          .prescription-medicine-table tr {
+            break-inside: avoid-page;
+            page-break-inside: avoid;
+          }
+
+          .prescription-medicine-table {
+            break-inside: auto;
+            page-break-inside: auto;
+          }
+
+          .prescription-page {
+            break-after: page;
+            page-break-after: always;
+          }
+
+          .prescription-page:last-child {
+            break-after: auto;
+            page-break-after: auto;
           }
         }
       `}</style>

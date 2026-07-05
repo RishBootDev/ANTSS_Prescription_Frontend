@@ -8,7 +8,7 @@ import { prescriptionService } from "@/src/services/prescription.service";
 import { useConsultationVoice } from "@/hooks/useConsultationVoice";
 import { getPrescriptionDocuments } from "@/lib/services/documentService";
 
-import { ConsultationHeader } from "../components/ConsultationHeader";
+import { ConsultationHeader, ConsultationTheme } from "../components/ConsultationHeader";
 import { PatientInfoCard } from "../components/PatientInfoCard";
 import { PrescriptionHistoryCard } from "../components/PrescriptionHistoryCard";
 import { SavePrescriptionRequest } from "../../../../types/backend";
@@ -53,8 +53,42 @@ const emptyPatientData: PatientData = {
   documents: [],
 };
 
+const ensureDefaultInputRows = (data: PatientData): PatientData => ({
+  ...data,
+  complaints: data.complaints?.length
+    ? data.complaints
+    : [{ id: "comp-new", complaintName: "", complaintFrequency: "", severity: "", complaintDuration: "" }],
+  generalExaminations: data.generalExaminations?.length
+    ? data.generalExaminations
+    : [{ id: "ge-new", finding: "", status: "", severity: "", notes: "" }],
+  pastMedicalHistories: data.pastMedicalHistories?.length
+    ? data.pastMedicalHistories
+    : [{ id: "pmh-new", disease: "", duration: "", status: "", notes: "" }],
+  diagnoses: data.diagnoses?.length
+    ? data.diagnoses
+    : [{ id: "diag-new", diagnosisName: "", diagnosisCode: "", diagnosisDuration: "" }],
+  testsRequested: data.testsRequested?.length
+    ? data.testsRequested
+    : [{ id: "test-new", name: "", notes: "", documentUrl: null, documentFileName: null }],
+  investigations: data.investigations?.length
+    ? data.investigations
+    : [{ id: "inv-new", test: "", value: "", notes: "" }],
+  medicines: data.medicines?.length
+    ? data.medicines
+    : [{
+        id: "med-new",
+        medicineName: "",
+        strength: "",
+        dosage: "",
+        frequency: "",
+        duration: "",
+        instruction: "",
+        quantity: "1",
+      }],
+});
+
 const convertToPatientFormData = (patient: any): PatientData => {
-  return {
+  return ensureDefaultInputRows({
     registrationId: patient.registrationId || null,
     registrationNumber: patient.registrationNumber || null,
     patientId: Number(patient.id) || Number(patient.patientId) || null,
@@ -93,7 +127,7 @@ const convertToPatientFormData = (patient: any): PatientData => {
     insuranceId: patient.insuranceId || null,
     medicines: patient.medicines?.length ? patient.medicines : [{ id: "med-new", medicineName: "", strength: "", dosage: "", frequency: "", duration: "", instruction: "", quantity: "1" }],
     documents: [],
-  };
+  });
 };
 
 const splitInvestigationNotes = (item: any) => {
@@ -137,8 +171,23 @@ const stripDocumentState = (data: PatientData): PatientData => ({
   })),
 });
 
+const getInitialConsultationTheme = (): ConsultationTheme => {
+  if (typeof window === "undefined") return "light";
+
+  const requestedTheme = new URLSearchParams(window.location.search).get("theme");
+  if (requestedTheme === "light" || requestedTheme === "dark" || requestedTheme === "colourful") {
+    return requestedTheme;
+  }
+
+  const storedTheme = localStorage.getItem("preferred_consultation_theme");
+  return storedTheme === "dark" || storedTheme === "colourful" ? storedTheme : "light";
+};
+
 export default function ConsultationPage() {
   const router = useRouter();
+  const [theme, setTheme] = useState<ConsultationTheme>(getInitialConsultationTheme);
+  const [hasSavedVersion, setHasSavedVersion] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(true);
   const [isFreshConsultation] = useState(
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("fresh") === "1"
   );
@@ -161,11 +210,33 @@ export default function ConsultationPage() {
   }, [initialize]);
 
   useEffect(() => {
+    setTheme(getInitialConsultationTheme());
+  }, []);
+
+  const handleThemeChange = (newTheme: ConsultationTheme) => {
+    setTheme(newTheme);
+    localStorage.setItem("preferred_consultation_theme", newTheme);
+  };
+
+  useEffect(() => {
     const token = localStorage.getItem("auth_token");
     if (!token) {
       router.replace("/login");
     }
   }, [isAuthenticated, router]);
+
+  const updatePatientData = useCallback<React.Dispatch<React.SetStateAction<PatientData>>>(
+    (value) => {
+      setHasUnsavedChanges(true);
+      setPatientData(value);
+    },
+    []
+  );
+
+  const handlePatientDataChange = useCallback((data: PatientData) => {
+    setHasUnsavedChanges(true);
+    setPatientData(data);
+  }, []);
 
   // Voice assistant hook
   const {
@@ -184,7 +255,7 @@ export default function ConsultationPage() {
     startListening,
     stopListening,
     isAvatarSpeaking,
-  } = useConsultationVoice({ patientData, setPatientData });
+  } = useConsultationVoice({ patientData, setPatientData: updatePatientData });
 
   const fetchPrescriptionHistory = useCallback(async (patientId: number) => {
     setHistoryLoading(true);
@@ -226,7 +297,7 @@ export default function ConsultationPage() {
         if (draftStr) {
           try {
             const draft = JSON.parse(draftStr);
-            setPatientData(stripDocumentState(draft.patientData));
+            setPatientData(ensureDefaultInputRows(stripDocumentState(draft.patientData)));
           } catch (e) {
             setPatientData(convertToPatientFormData(patient));
           }
@@ -394,7 +465,9 @@ export default function ConsultationPage() {
       })),
     };
 
-    setPatientData(mappedData);
+    setPatientData(ensureDefaultInputRows(mappedData));
+    setHasSavedVersion(true);
+    setHasUnsavedChanges(false);
   };
 
   // Auto-load today's prescription if it exists in the history
@@ -433,6 +506,8 @@ export default function ConsultationPage() {
     setViewingPrescriptionId(null);
     resetTranscript();
     setSaveStatus("idle");
+    setHasSavedVersion(false);
+    setHasUnsavedChanges(true);
   };
 
   const handleSave = async () => {
@@ -740,6 +815,8 @@ export default function ConsultationPage() {
       }
 
       setSaveStatus("saved");
+      setHasSavedVersion(true);
+      setHasUnsavedChanges(false);
 
       if (originalPatient?.id) {
         fetchPrescriptionHistory(Number(originalPatient.id));
@@ -759,9 +836,17 @@ export default function ConsultationPage() {
   const isReadOnly = Boolean(
     viewedPrescription && !viewedPrescription.createdAt?.startsWith(todayYYYYMMDD)
   );
+  const canPrint =
+    hasSavedVersion && !hasUnsavedChanges && saveStatus !== "saving";
+  const handlePrintBlocked = () => {
+    window.alert("Please save the prescription before printing or generating a PDF.");
+  };
 
   return (
-    <div className="min-h-screen bg-[#f5f7fa]">
+    <div
+      className="consultation-shell min-h-screen bg-background"
+      data-consultation-theme={theme}
+    >
       <ConsultationHeader
         goBack={goBack}
         handleReset={handleReset}
@@ -769,9 +854,12 @@ export default function ConsultationPage() {
         saveStatus={saveStatus}
         isReadOnly={isReadOnly}
         hasTodayPrescription={prescriptionHistory.some((p) => p.createdAt?.startsWith(todayYYYYMMDD))}
+        theme={theme}
+        onThemeChange={handleThemeChange}
+        canPrint={canPrint}
       />
 
-      <main className="mx-auto w-full max-w-none px-3 pb-16 sm:px-4 lg:px-6">
+      <main className="consultation-main mx-auto w-full max-w-none px-3 pb-16 sm:px-4 lg:px-6">
         <FloatingAIAssistant
           assistantStage={assistantState as any}
           activeVoiceContext={activeVoiceContext}
@@ -792,7 +880,9 @@ export default function ConsultationPage() {
           <div className={isReadOnly ? "pointer-events-none opacity-80" : ""}>
             <PatientForm
               data={patientData}
-              onChange={setPatientData}
+              onChange={handlePatientDataChange}
+              canPrint={canPrint}
+              onPrintBlocked={handlePrintBlocked}
               highlightedFields={highlightedFields}
               mic={{
                 isListening,

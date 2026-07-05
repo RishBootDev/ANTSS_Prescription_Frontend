@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Activity, Calendar } from "lucide-react";
+import { Activity, Calendar, ClipboardCheck } from "lucide-react";
 import { PatientData } from "../patient-form-fields/types";
 import { VoiceContext } from "@/hooks/useConsultationVoice";
 
@@ -30,7 +30,6 @@ type Props = {
   ) => JSX.Element;
 };
 
-// Returns today's date in YYYY-MM-DD (local timezone, no UTC shift)
 function localTodayStr() {
   const d = new Date();
   const y = d.getFullYear();
@@ -47,93 +46,118 @@ export default function PlanPage({
 }: Props) {
   const today = localTodayStr();
 
+  const commonInputClass = (field: keyof PatientData) =>
+    `h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm
+     placeholder:text-slate-400 transition-all
+     hover:border-orange-300 focus-visible:border-orange-500 focus-visible:bg-white
+     focus-visible:ring-2 focus-visible:ring-orange-100 ${inputClass(field)}`;
+
   return (
-    <Card className="border-slate-200 shadow-sm rounded-xl bg-white overflow-hidden">
-      <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-3 px-4">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+    <Card className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm">
+      <CardHeader className="border-b border-slate-100 bg-white px-4 py-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-800">
           {wrapWithMic(
             { mode: "COMPONENT", component: "Plan" },
-            <div className="flex items-center gap-2 cursor-pointer">
-              <Activity className="h-4 w-4 text-slate-500" />
-              Plan
+            <div className="flex cursor-pointer items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-orange-600 ring-1 ring-orange-100">
+                <Activity className="h-4.5 w-4.5" />
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2">
+                  Treatment Plan
+                  <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-600">
+                    Follow-up
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[11px] font-medium normal-case tracking-normal text-slate-400">
+                  Advice, instructions and revisit schedule
+                </p>
+              </div>
             </div>
           )}
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="grid gap-3 p-4">
-
-        {/* Advice */}
-        <div className="grid gap-1">
-          <Label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-            Advice &amp; Instructions
-          </Label>
-          {wrapWithMic(
-            { mode: "FIELD", field: "advice" },
-            <Textarea
-              rows={2}
-              value={data.advice ?? ""}
-              onChange={(e) =>
-                updateField("advice", e.target.value || null)
-              }
-              placeholder="e.g., Rest well, avoid cold food, drink plenty of fluids…"
-              className={`text-sm bg-slate-50 border-slate-200 focus-visible:ring-sky-500 resize-none ${inputClass("advice")}`}
-            />
-          )}
-        </div>
-
-        {/* Row: Next Visit + Follow-up Date */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-
-          {/* Next Visit Date */}
-          <div className="grid gap-1">
-            <Label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1 mb-1">
-              <Calendar className="h-3 w-3" />
-              Next Visit Date
+      <CardContent className="bg-gradient-to-b from-orange-50/35 to-white p-4">
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <Label className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+              <ClipboardCheck className="h-3.5 w-3.5 text-orange-500" />
+              Advice &amp; Instructions
             </Label>
+
             {wrapWithMic(
-              { mode: "FIELD", field: "nextVisit" },
-              <Input
-                type="date"
-                min={today}
-                value={data.nextVisit ?? ""}
-                onChange={(e) =>
-                  updateField("nextVisit", e.target.value || null)
-                }
-                className={`h-8 text-sm bg-slate-50 border-slate-200 focus-visible:ring-sky-500 [&::-webkit-calendar-picker-indicator]:mr-6 ${inputClass("nextVisit")}`}
+              { mode: "FIELD", field: "advice" },
+              <Textarea
+                rows={4}
+                value={data.advice ?? ""}
+                onChange={(e) => updateField("advice", e.target.value || null)}
+                placeholder="e.g. Rest well, avoid cold food, drink plenty of fluids..."
+                className={`min-h-[110px] resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-900 shadow-none placeholder:text-slate-400 transition-all hover:border-orange-300 focus-visible:border-orange-500 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-orange-100 ${inputClass(
+                  "advice"
+                )}`}
               />
             )}
-            <p className="text-[10px] text-muted-foreground">
-              Suggested revisit date for follow-up
-            </p>
           </div>
 
-          {/* Follow-up Date */}
-          <div className="grid gap-1">
-            <Label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1 mb-1">
-              <Calendar className="h-3 w-3 text-primary" />
-              Follow-up Date
-              <span className="ml-1 text-[9px] text-muted-foreground/70">(must be today or later)</span>
-            </Label>
-            {wrapWithMic(
-              { mode: "FIELD", field: "followUp" },
-              <Input
-                type="date"
-                min={today}
-                value={data.followUp ?? ""}
-                onChange={(e) =>
-                  updateField("followUp", e.target.value || null)
-                }
-                className={`h-8 text-sm bg-slate-50 border-slate-200 focus-visible:ring-sky-500 [&::-webkit-calendar-picker-indicator]:mr-6 ${inputClass("followUp")}`}
-              />
-            )}
-            <p className="text-[10px] text-muted-foreground">
-              Date to schedule the follow-up appointment
-            </p>
-          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-orange-200 hover:shadow-md">
+              <Label className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                <Calendar className="h-3.5 w-3.5 text-orange-500" />
+                Next Visit Date
+              </Label>
 
+              {wrapWithMic(
+                { mode: "FIELD", field: "nextVisit" },
+                <Input
+                  type="date"
+                  min={today}
+                  value={data.nextVisit ?? ""}
+                  onChange={(e) =>
+                    updateField("nextVisit", e.target.value || null)
+                  }
+                  className={`${commonInputClass(
+                    "nextVisit"
+                  )} [&::-webkit-calendar-picker-indicator]:cursor-pointer`}
+                />
+              )}
+
+              <p className="mt-2 text-[11px] font-medium text-slate-400">
+                Suggested revisit date for patient review.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-orange-200 hover:shadow-md">
+              <Label className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                <Calendar className="h-3.5 w-3.5 text-blue-500" />
+                Follow-up Date
+                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-bold text-blue-600">
+                  Today or later
+                </span>
+              </Label>
+
+              {wrapWithMic(
+                { mode: "FIELD", field: "followUp" },
+                <Input
+                  type="date"
+                  min={today}
+                  value={data.followUp ?? ""}
+                  onChange={(e) =>
+                    updateField("followUp", e.target.value || null)
+                  }
+                  className={`${commonInputClass(
+                    "followUp"
+                  )} [&::-webkit-calendar-picker-indicator]:cursor-pointer`}
+                />
+              )}
+
+              <p className="mt-2 text-[11px] font-medium text-slate-400">
+                Date to schedule the follow-up appointment.
+              </p>
+            </div>
+          </div>
         </div>
-
       </CardContent>
     </Card>
   );

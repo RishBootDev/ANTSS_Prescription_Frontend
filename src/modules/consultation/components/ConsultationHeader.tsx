@@ -1,8 +1,32 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Save, RotateCcw, CheckCircle, Stethoscope, Plus, Printer, FileText } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  RotateCcw,
+  CheckCircle,
+  Stethoscope,
+  Plus,
+  Printer,
+  FileText,
+  Sun,
+  Moon,
+  Palette,
+} from "lucide-react";
 import { TemplateSelector, TemplateId } from "@/components/TemplateSelector";
+
+export type ConsultationTheme = "light" | "dark" | "colourful";
+
+const themes: {
+  id: ConsultationTheme;
+  label: string;
+  icon: typeof Sun;
+}[] = [
+  { id: "light", label: "Light", icon: Sun },
+  { id: "dark", label: "Dark", icon: Moon },
+  { id: "colourful", label: "Colourful", icon: Palette },
+];
 
 interface ConsultationHeaderProps {
   goBack: () => void;
@@ -11,6 +35,9 @@ interface ConsultationHeaderProps {
   saveStatus: "idle" | "saving" | "saved";
   isReadOnly: boolean;
   hasTodayPrescription?: boolean;
+  theme: ConsultationTheme;
+  onThemeChange: (theme: ConsultationTheme) => void;
+  canPrint: boolean;
 }
 
 export function ConsultationHeader({
@@ -20,6 +47,9 @@ export function ConsultationHeader({
   saveStatus,
   isReadOnly,
   hasTodayPrescription,
+  theme,
+  onThemeChange,
+  canPrint,
 }: ConsultationHeaderProps) {
   const [template, setTemplate] = useState<TemplateId>("EMR");
 
@@ -36,20 +66,24 @@ export function ConsultationHeader({
     window.dispatchEvent(new CustomEvent("templateChanged", { detail: newTemplate }));
   };
 
+  const handleThemeSelect = (newTheme: ConsultationTheme) => {
+    onThemeChange(newTheme);
+  };
+
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
-      <div className="flex min-h-14 flex-wrap items-center justify-between gap-y-2 px-3 py-2 lg:px-5">
+    <header className="consultation-header sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+      <div className="flex min-h-16 flex-wrap items-center justify-between gap-y-2 px-3 py-2.5 lg:px-6">
         <div className="flex items-center gap-2 sm:gap-4">
-          <Button variant="ghost" size="sm" onClick={goBack} className="h-8 gap-1 px-2 text-slate-500">
+          <Button variant="ghost" size="sm" onClick={goBack} className="h-9 gap-1.5 rounded-xl px-2.5 text-slate-500">
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline">Back</span>
           </Button>
           <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 shadow-sm shadow-blue-200">
-              <Stethoscope className="h-4 w-4 text-white" />
+            <div className="brand-mark flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
+              <Stethoscope className="h-[18px] w-[18px] text-white" />
             </div>
             <div>
-              <h1 className="flex items-center gap-1.5 text-xs font-bold tracking-[0.16em] text-slate-800">
+              <h1 className="flex items-center gap-1.5 text-[13px] font-black tracking-[0.18em] text-slate-800">
                 MEDOS
                 {hasTodayPrescription && (
                   <Badge
@@ -60,12 +94,39 @@ export function ConsultationHeader({
                   </Badge>
                 )}
               </h1>
-              <p className="hidden text-[9px] text-slate-400 sm:block">Prescription workspace</p>
+              <p className="hidden text-[10px] font-medium text-slate-400 sm:block">Prescription workspace</p>
             </div>
           </div>
         </div>
 
         <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
+          <div
+            className="theme-switcher flex h-9 items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
+            role="group"
+            aria-label="Workspace theme"
+          >
+            {themes.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => handleThemeSelect(id)}
+                aria-label={`${label} theme`}
+                aria-pressed={theme === id}
+                title={`${label} theme`}
+                className={`flex h-7 items-center gap-1.5 rounded-lg px-2 text-[11px] font-semibold transition-all ${
+                  theme === id
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className={theme === id ? "hidden 2xl:inline" : "hidden"}>
+                  {label}
+                </span>
+              </button>
+            ))}
+          </div>
+
           <TemplateSelector currentTemplate={template} onSelect={handleTemplateSelect} />
 
           <div className="hidden items-center gap-1 md:flex">
@@ -73,7 +134,9 @@ export function ConsultationHeader({
               variant="ghost"
               size="sm"
               onClick={() => document.getElementById("print-prescription-action")?.click()}
-              className="h-8 gap-1.5 text-xs text-slate-500"
+              aria-disabled={!canPrint}
+              title={canPrint ? "Generate prescription PDF" : "Save changes before generating PDF"}
+              className={`h-8 gap-1.5 text-xs text-slate-500 ${!canPrint ? "opacity-45" : ""}`}
             >
               <FileText className="h-3.5 w-3.5" />
               PDF
@@ -82,7 +145,9 @@ export function ConsultationHeader({
               variant="ghost"
               size="sm"
               onClick={() => document.getElementById("print-prescription-action")?.click()}
-              className="h-8 gap-1.5 text-xs text-slate-500"
+              aria-disabled={!canPrint}
+              title={canPrint ? "Print prescription" : "Save changes before printing"}
+              className={`h-8 gap-1.5 text-xs text-slate-500 ${!canPrint ? "opacity-45" : ""}`}
             >
               <Printer className="h-3.5 w-3.5" />
               Print
@@ -95,7 +160,7 @@ export function ConsultationHeader({
                 variant="outline"
                 size="sm"
                 onClick={handleReset}
-                className="h-8 gap-2 border-blue-200 text-blue-600 hover:bg-blue-50"
+                className="h-8 gap-2 border-primary/20 text-primary hover:bg-primary/10"
               >
                 <Plus className="h-4 w-4" />
                 New Consultation
@@ -111,7 +176,7 @@ export function ConsultationHeader({
                   size="sm"
                   onClick={handleSave}
                   disabled={saveStatus === "saving"}
-                  className="h-8 rounded-lg bg-blue-600 px-4 text-xs text-white hover:bg-blue-700"
+                  className="h-8 rounded-lg bg-primary px-4 text-xs text-white hover:bg-primary/90"
                 >
                   {saveStatus === "saved" ? (
                     <>

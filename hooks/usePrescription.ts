@@ -100,6 +100,8 @@ export function usePrescription(prescriptionId: number | null) {
       }
 
       // 5. Map the fetched API data into UI component friendly structures
+      const legacyPrescription = rawPrescription as any;
+      const extendedConsultation = consultation as any;
 
       // Map Clinic/Hospital Info
       let mappedClinic: MappedClinicInfo = { ...DEFAULT_CLINIC };
@@ -172,7 +174,8 @@ export function usePrescription(prescriptionId: number | null) {
         contactNumber: consultation.mobileNumber || undefined,
         visitDate: visitDateStr,
         visitTime: visitTimeStr,
-        prescriptionId: String(rawPrescription.prescriptionId)
+        prescriptionId: String(rawPrescription.prescriptionId),
+        address: extendedConsultation.patientAddress || extendedConsultation.address || undefined,
       };
 
       // Map Clinical Vitals dynamically
@@ -211,6 +214,27 @@ export function usePrescription(prescriptionId: number | null) {
 
       // Map general examinations
       const clinicalFindings: string[] = [];
+      const generalExaminations =
+        extendedConsultation.generalExaminations ||
+        legacyPrescription.generalExaminations ||
+        [];
+      if (Array.isArray(generalExaminations)) {
+        generalExaminations.forEach((examination: any) => {
+          const finding =
+            examination.finding ||
+            examination.generalExamination ||
+            examination.name;
+          if (!finding) return;
+          const details = [
+            examination.status,
+            examination.severity,
+            examination.notes,
+          ].filter(Boolean);
+          clinicalFindings.push(
+            `${finding}${details.length ? ` (${details.join(", ")})` : ""}`
+          );
+        });
+      }
       if (consultation.generalExamination) {
         clinicalFindings.push(consultation.generalExamination);
       }
@@ -223,9 +247,31 @@ export function usePrescription(prescriptionId: number | null) {
       if (consultation.currentMedicine) {
         pastHistory.push(`On medications: ${consultation.currentMedicine}`);
       }
+      const medicalHistories =
+        extendedConsultation.pastMedicalHistories ||
+        legacyPrescription.pastMedicalHistories ||
+        [];
+      if (Array.isArray(medicalHistories)) {
+        medicalHistories.forEach((history: any) => {
+          const condition =
+            history.disease ||
+            history.medicalHistory ||
+            history.history ||
+            history.condition;
+          const details = [history.duration, history.status, history.notes].filter(Boolean);
+          if (condition) {
+            pastHistory.push(
+              `${condition}${details.length ? ` (${details.join(", ")})` : ""}`
+            );
+          }
+        });
+      }
 
       const allergies: string[] = [];
-      if (consultation.allergies) {
+      if (
+        consultation.allergies &&
+        !["none", "n/a", "na"].includes(consultation.allergies.toLowerCase())
+      ) {
         allergies.push(consultation.allergies);
       }
 
@@ -242,32 +288,60 @@ export function usePrescription(prescriptionId: number | null) {
       }
 
       // Map medicines
-      const mappedMedicines: MappedMedicine[] = (rawPrescription.medicines || []).map((med, idx) => ({
-        id: med.prescriptionMedicineId || idx,
-        genericName: med.medicineName,
-        dosage: med.dosage,
-        frequency: med.frequency,
-        instructions: med.instruction || "As directed by physician",
-        duration: med.duration,
-        quantity: med.quantity
-      }));
+      const mappedMedicines: MappedMedicine[] = (rawPrescription.medicines || [])
+        .filter((medicine) => medicine.medicineName?.trim())
+        .map((med, idx) => ({
+          id: med.prescriptionMedicineId || idx,
+          genericName: med.medicineName,
+          dosage: med.dosage || "",
+          frequency: med.frequency || "",
+          instructions: med.instruction || "",
+          duration: med.duration || "",
+          quantity: med.quantity
+        }));
 
       // Map tests recommended (new backend diagnostics, with legacy fallback)
-      const tests: MappedTest[] = [];
+      const testsRequested: MappedTest[] = [];
       if (rawPrescription.diagnostics) {
         rawPrescription.diagnostics.forEach(diagnostic => {
-          tests.push({ id: `diag-${diagnostic.id}`, name: diagnostic.testName, notes: diagnostic.notes });
+          if (diagnostic.testName) {
+            testsRequested.push({
+              id: `diag-${diagnostic.id}`,
+              name: diagnostic.testName,
+              notes: diagnostic.notes,
+            });
+          }
         });
       }
-      const legacyPrescription = rawPrescription as any;
-      if (legacyPrescription.testRequested) {
-        legacyPrescription.testRequested.forEach((tr: any) => {
-          tests.push({ id: `tr-${tr.id}`, name: tr.testName });
+      const requestedTests =
+        legacyPrescription.testsRequested ||
+        legacyPrescription.testRequested ||
+        [];
+      if (Array.isArray(requestedTests)) {
+        requestedTests.forEach((tr: any) => {
+          const name = tr.testName || tr.name;
+          if (name) {
+            testsRequested.push({
+              id: `tr-${tr.id}`,
+              name,
+              notes: tr.notes || undefined,
+            });
+          }
         });
       }
+
+      const investigations: MappedTest[] = [];
       if (legacyPrescription.investigations) {
         legacyPrescription.investigations.forEach((inv: any) => {
-          tests.push({ id: `inv-${inv.id}`, name: inv.investigationName });
+          const name = inv.investigationName || inv.testName || inv.test || inv.name;
+          if (name) {
+            const notes = [inv.value || inv.result, inv.notes].filter(Boolean).join(", ");
+            investigations.push({
+              id: `inv-${inv.id}`,
+              name,
+              notes: notes || undefined,
+            });
+          }
         });
       }
 
@@ -310,7 +384,9 @@ export function usePrescription(prescriptionId: number | null) {
         allergies,
         diagnosis: diagnosisStr,
         medicines: mappedMedicines,
-        testsRecommended: tests,
+        testsRecommended: testsRequested,
+        investigations,
+        testsRequested,
         advice,
         followUp,
         additionalNotes: rawPrescription.notes,
