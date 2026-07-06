@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import * as XLSX from "xlsx";
 import {
   ArrowLeft,
+  CheckCircle2,
   Edit,
+  FileSpreadsheet,
   Languages,
   Loader2,
   Pill,
@@ -12,6 +15,8 @@ import {
   RefreshCw,
   Search,
   Trash2,
+  Upload,
+  XCircle,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +57,12 @@ import {
 
 type InstructionLanguage = "hindi" | "english" | "maithili" | "bhojpuri";
 type TimeSlot = "morning" | "afternoon" | "night";
+
+type ImportMedicineRow = MedicineMasterPayload & {
+  rowNo: number;
+  status: "extracted" | "importing" | "success" | "failed";
+  error?: string;
+};
 
 const timeLabels: Record<InstructionLanguage, Record<TimeSlot, string>> = {
   hindi: { morning: "सुबह", afternoon: "दोपहर", night: "रात" },
@@ -167,6 +178,16 @@ const dosagePresets: { value: string; label: string }[] = [
   { value: "2-2-2", label: "2-2-2 (2 thrice a day)" },
   { value: "custom", label: "Custom (type manually)" },
 ];
+
+function getExcelValue(row: any, keys: string[]) {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null) {
+      return String(row[key]).trim();
+    }
+  }
+
+  return "";
+}
 
 function MedicineMasterForm({
   initialMedicine,
@@ -437,6 +458,10 @@ export default function MedicineMasterPage() {
   const [editingMedicine, setEditingMedicine] =
     useState<MedicineMaster | null>(null);
 
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importRows, setImportRows] = useState<ImportMedicineRow[]>([]);
+  const [importing, setImporting] = useState(false);
+
   const filteredMedicines = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
 
@@ -456,6 +481,16 @@ export default function MedicineMasterPage() {
         .some((field) => String(field).toLowerCase().includes(keyword))
     );
   }, [medicines, searchText]);
+
+  const importSummary = useMemo(() => {
+    return {
+      total: importRows.length,
+      extracted: importRows.filter((row) => row.status === "extracted").length,
+      importing: importRows.filter((row) => row.status === "importing").length,
+      success: importRows.filter((row) => row.status === "success").length,
+      failed: importRows.filter((row) => row.status === "failed").length,
+    };
+  }, [importRows]);
 
   const loadMedicines = async () => {
     setLoading(true);
@@ -498,6 +533,11 @@ export default function MedicineMasterPage() {
   const openEditDialog = (medicine: MedicineMaster) => {
     setEditingMedicine(medicine);
     setDialogOpen(true);
+  };
+
+  const openImportDialog = () => {
+    setImportRows([]);
+    setImportDialogOpen(true);
   };
 
   const handleSubmit = async (payload: MedicineMasterPayload) => {
@@ -565,6 +605,184 @@ export default function MedicineMasterPage() {
     }
   };
 
+  const handleExcelUpload = async (file: File) => {
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+
+      if (!sheetName) {
+        toast({
+          title: "Invalid Excel file",
+          description: "No sheet found in the uploaded file.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const sheet = workbook.Sheets[sheetName];
+      const rows: any[] = XLSX.utils.sheet_to_json(sheet, {
+        defval: "",
+      });
+
+      const mappedRows: ImportMedicineRow[] = rows
+        .map((row, index) => {
+          const dosage = getExcelValue(row, [
+            "Dosage",
+            "dosage",
+            "Dose",
+            "dose",
+          ]);
+
+          const instructions =
+            getExcelValue(row, [
+              "Instructions",
+              "Instruction",
+              "instructions",
+              "instruction",
+            ]) || getInstruction(dosage, "hindi");
+
+         return {
+  rowNo: index + 2,
+  medicineName: getExcelValue(row, [
+    "Medicine Name",
+    "medicineName",
+    "Medicine",
+    "medicine",
+    "Name",
+    "name",
+  ]),
+  genericName: getExcelValue(row, [
+    "Generic Name",
+    "genericName",
+    "Generic",
+    "generic",
+  ]),
+  strength: getExcelValue(row, [
+    "Strength",
+    "strength",
+    "Power",
+    "power",
+  ]),
+  dosageForm: getExcelValue(row, [
+    "Dosage Form",
+    "dosageForm",
+    "Form",
+    "form",
+    "Type",
+    "type",
+  ]),
+  dosage,
+  instructions,
+  manufacturer: getExcelValue(row, [
+    "Manufacturer",
+    "manufacturer",
+    "Company",
+    "company",
+  ]),
+  active: true,
+  status: "extracted" as const,
+};
+        })
+        .filter((row) => row.medicineName);
+
+      setImportRows(mappedRows);
+
+      toast({
+        title: `${mappedRows.length} medicines extracted from Excel.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Unable to read Excel file",
+        description: error?.message || "Please upload a valid Excel file.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const importExcelMedicines = async () => {
+    if (importRows.length === 0) return;
+
+    setImporting(true);
+
+    for (const row of importRows) {
+      if (row.status === "success") continue;
+
+      setImportRows((current) =>
+        current.map((item) =>
+          item.rowNo === row.rowNo
+            ? { ...item, status: "importing", error: undefined }
+            : item
+        )
+      );
+
+      try {
+        const { rowNo, status, error, ...payload } = row;
+
+        await medicineService.saveMedicine({
+          ...payload,
+          active: true,
+        });
+
+        setImportRows((current) =>
+          current.map((item) =>
+            item.rowNo === row.rowNo
+              ? { ...item, status: "success", error: undefined }
+              : item
+          )
+        );
+      } catch (error: any) {
+        setImportRows((current) =>
+          current.map((item) =>
+            item.rowNo === row.rowNo
+              ? {
+                  ...item,
+                  status: "failed",
+                  error: error?.message || "Failed to import medicine",
+                }
+              : item
+          )
+        );
+      }
+    }
+
+    setImporting(false);
+    await loadMedicines();
+
+    toast({
+      title: "Excel import completed.",
+    });
+  };
+
+  const downloadSampleExcel = () => {
+    const sampleData = [
+      {
+        "Medicine Name": "Dolo 650",
+        "Generic Name": "Paracetamol",
+        Strength: "650mg",
+        "Dosage Form": "Tablet",
+        Dosage: "1-0-1",
+        Instructions: "सुबह में 1 खुराक और रात में 1 खुराक लें",
+        Manufacturer: "Micro Labs",
+      },
+      {
+        "Medicine Name": "Pantocid 40",
+        "Generic Name": "Pantoprazole",
+        Strength: "40mg",
+        "Dosage Form": "Tablet",
+        Dosage: "1-0-0",
+        Instructions: "सुबह में 1 खुराक लें",
+        Manufacturer: "Sun Pharma",
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(sampleData);
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Medicines");
+    XLSX.writeFile(workbook, "medicine-master-sample.xlsx");
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/70">
@@ -590,6 +808,16 @@ export default function MedicineMasterPage() {
               </Link>
             </Button>
 
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1"
+              onClick={openImportDialog}
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Import Excel
+            </Button>
+
             <Button size="sm" className="gap-1" onClick={openCreateDialog}>
               <Plus className="h-3.5 w-3.5" />
               Add Medicine
@@ -604,7 +832,7 @@ export default function MedicineMasterPage() {
             <div>
               <CardTitle className="text-base">Medicine List</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Add, edit, delete, and manage medicine master records.
+                Add, edit, delete, import, and manage medicine master records.
               </p>
             </div>
 
@@ -648,14 +876,26 @@ export default function MedicineMasterPage() {
 
                 <p className="text-sm font-medium">No medicines found.</p>
 
-                <Button
-                  className="mt-4 gap-1"
-                  size="sm"
-                  onClick={openCreateDialog}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Add Medicine
-                </Button>
+                <div className="mt-4 flex justify-center gap-2">
+                  <Button
+                    className="gap-1"
+                    size="sm"
+                    variant="outline"
+                    onClick={openImportDialog}
+                  >
+                    <FileSpreadsheet className="h-3.5 w-3.5" />
+                    Import Excel
+                  </Button>
+
+                  <Button
+                    className="gap-1"
+                    size="sm"
+                    onClick={openCreateDialog}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Medicine
+                  </Button>
+                </div>
               </div>
             ) : (
               <Table>
@@ -779,6 +1019,195 @@ export default function MedicineMasterPage() {
             onSubmit={handleSubmit}
             onCancel={() => setDialogOpen(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>Import Medicines from Excel</DialogTitle>
+
+            <DialogDescription>
+              Upload an Excel sheet, preview extracted medicines, then import
+              them one by one with live status.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-dashed bg-muted/30 p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
+                    <Upload className="h-5 w-5 text-primary" />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold">
+                      Upload Excel / CSV file
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Required column: Medicine Name. Optional: Generic Name,
+                      Strength, Dosage Form, Dosage, Instructions,
+                      Manufacturer.
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadSampleExcel}
+                >
+                  Download Sample Excel
+                </Button>
+              </div>
+
+              <Input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                disabled={importing}
+                className="mt-4"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) handleExcelUpload(file);
+                }}
+              />
+            </div>
+
+            {importRows.length > 0 && (
+              <>
+                <div className="grid gap-3 sm:grid-cols-5">
+                  <div className="rounded-xl border p-3">
+                    <p className="text-xs text-muted-foreground">Total</p>
+                    <p className="text-xl font-bold">{importSummary.total}</p>
+                  </div>
+
+                  <div className="rounded-xl border p-3">
+                    <p className="text-xs text-muted-foreground">Extracted</p>
+                    <p className="text-xl font-bold">
+                      {importSummary.extracted}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border p-3">
+                    <p className="text-xs text-muted-foreground">Adding</p>
+                    <p className="text-xl font-bold">
+                      {importSummary.importing}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border p-3">
+                    <p className="text-xs text-muted-foreground">Added</p>
+                    <p className="text-xl font-bold text-green-600">
+                      {importSummary.success}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border p-3">
+                    <p className="text-xs text-muted-foreground">Failed</p>
+                    <p className="text-xl font-bold text-red-600">
+                      {importSummary.failed}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">
+                      Extracted Medicine Preview
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Each row will visually change from Extracted → Adding →
+                      Added / Failed.
+                    </p>
+                  </div>
+
+                  <Button onClick={importExcelMedicines} disabled={importing}>
+                    {importing && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Import Medicines
+                  </Button>
+                </div>
+
+                <div className="max-h-[420px] overflow-auto rounded-xl border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Row</TableHead>
+                        <TableHead>Medicine</TableHead>
+                        <TableHead>Generic</TableHead>
+                        <TableHead>Strength</TableHead>
+                        <TableHead>Form</TableHead>
+                        <TableHead>Dosage</TableHead>
+                        <TableHead>Manufacturer</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+
+                    <TableBody>
+                      {importRows.map((row) => (
+                        <TableRow key={row.rowNo}>
+                          <TableCell>{row.rowNo}</TableCell>
+
+                          <TableCell>
+                            <div className="font-medium">
+                              {row.medicineName}
+                            </div>
+                            <div className="max-w-xs truncate text-xs text-muted-foreground">
+                              {row.instructions || "No instruction"}
+                            </div>
+                          </TableCell>
+
+                          <TableCell>{row.genericName || "-"}</TableCell>
+                          <TableCell>{row.strength || "-"}</TableCell>
+                          <TableCell>{row.dosageForm || "-"}</TableCell>
+                          <TableCell>{row.dosage || "-"}</TableCell>
+                          <TableCell>{row.manufacturer || "-"}</TableCell>
+
+                          <TableCell>
+                            {row.status === "extracted" && (
+                              <Badge variant="secondary">Extracted</Badge>
+                            )}
+
+                            {row.status === "importing" && (
+                              <Badge className="gap-1">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Adding
+                              </Badge>
+                            )}
+
+                            {row.status === "success" && (
+                              <Badge className="gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Added
+                              </Badge>
+                            )}
+
+                            {row.status === "failed" && (
+                              <div className="space-y-1">
+                                <Badge variant="destructive" className="gap-1">
+                                  <XCircle className="h-3 w-3" />
+                                  Failed
+                                </Badge>
+
+                                {row.error && (
+                                  <p className="max-w-xs text-xs text-red-600">
+                                    {row.error}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
