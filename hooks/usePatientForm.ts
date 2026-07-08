@@ -37,6 +37,7 @@ export interface BaseTemplateProps {
   }>;
   canPrint?: boolean;
   onPrintBlocked?: () => void;
+  printPrescriptionId?: number | null;
 }
 
 export function usePatientForm(props: BaseTemplateProps) {
@@ -47,6 +48,7 @@ export function usePatientForm(props: BaseTemplateProps) {
     mic,
     canPrint = true,
     onPrintBlocked,
+    printPrescriptionId,
   } = props;
 
   const updateField = <K extends keyof PatientData>(
@@ -420,19 +422,20 @@ export function usePatientForm(props: BaseTemplateProps) {
       return;
     }
 
-    const savedPrescriptionId = Number((data as any).prescriptionId);
+    const savedPrescriptionId = Number(printPrescriptionId || (data as any).prescriptionId);
 
     try {
       localStorage.setItem("prescriptionData", JSON.stringify(data));
     } catch (e) {
       console.error("Failed to save prescription data:", e);
     }
-    window.open(
-      Number.isFinite(savedPrescriptionId) && savedPrescriptionId > 0
-        ? `/prescription?id=${savedPrescriptionId}`
-        : "/prescription",
-      "_blank"
-    );
+
+    if (!Number.isFinite(savedPrescriptionId) || savedPrescriptionId <= 0) {
+      onPrintBlocked?.();
+      return;
+    }
+
+    window.open(`/prescription?id=${savedPrescriptionId}`, "_blank");
   };
 
   return {

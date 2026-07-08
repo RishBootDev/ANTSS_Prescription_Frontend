@@ -299,8 +299,10 @@ export default function ConsultationPage() {
       const history = await prescriptionService.getDetailedPrescriptionsByPatientId(patientId);
       if (Array.isArray(history)) {
         setPrescriptionHistory(history);
+        return history;
       } else {
         setPrescriptionHistory([]);
+        return [];
       }
     } catch (e: any) {
       setPrescriptionHistory([]);
@@ -310,6 +312,7 @@ export default function ConsultationPage() {
           : e?.message || "Unable to load prescription history."
       );
       console.warn("Prescription history unavailable:", e);
+      return [];
     } finally {
       setHistoryLoading(false);
     }
@@ -876,6 +879,13 @@ export default function ConsultationPage() {
           Number(saveResponse?.prescriptionId || saveResponse?.data?.prescriptionId || saveResponse?.id) ||
           savedPrescriptionId;
       }
+      if (!savedPrescriptionId && originalPatient?.id) {
+        const refreshedHistory = await fetchPrescriptionHistory(Number(originalPatient.id));
+        const refreshedTodayPrescription = refreshedHistory.find((p: any) =>
+          p.createdAt?.startsWith(todayYYYYMMDD)
+        );
+        savedPrescriptionId = Number(refreshedTodayPrescription?.prescriptionId) || savedPrescriptionId;
+      }
       if (savedPrescriptionId) {
         setViewingPrescriptionId(savedPrescriptionId);
         setPatientData((prev) => ({
@@ -905,7 +915,7 @@ export default function ConsultationPage() {
       setHasSavedVersion(true);
       setHasUnsavedChanges(false);
 
-      if (originalPatient?.id) {
+      if (originalPatient?.id && savedPrescriptionId) {
         fetchPrescriptionHistory(Number(originalPatient.id));
       }
 
@@ -923,8 +933,11 @@ export default function ConsultationPage() {
   const isReadOnly = Boolean(
     viewedPrescription && !viewedPrescription.createdAt?.startsWith(todayYYYYMMDD)
   );
+  const todayPrescription = prescriptionHistory.find((p) => p.createdAt?.startsWith(todayYYYYMMDD));
+  const printPrescriptionId =
+    Number(viewingPrescriptionId || (patientData as any).prescriptionId || todayPrescription?.prescriptionId) || null;
   const canPrint =
-    hasSavedVersion && !hasUnsavedChanges && saveStatus !== "saving";
+    Boolean(printPrescriptionId) && hasSavedVersion && !hasUnsavedChanges && saveStatus !== "saving";
   const handlePrintBlocked = () => {
     window.alert("Please save the prescription before printing or generating a PDF.");
   };
@@ -968,6 +981,7 @@ export default function ConsultationPage() {
               onChange={isReadOnly ? () => undefined : handlePatientDataChange}
               canPrint={canPrint}
               onPrintBlocked={handlePrintBlocked}
+              printPrescriptionId={printPrescriptionId}
               highlightedFields={highlightedFields}
               mic={{
                 isListening,
