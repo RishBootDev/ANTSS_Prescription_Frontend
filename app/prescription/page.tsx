@@ -11,18 +11,24 @@ function PrescriptionContent() {
   const searchParams = useSearchParams();
   const idParam = searchParams.get("id");
   const [localPrescription, setLocalPrescription] = useState<MappedPrescription | null>(null);
+  const [checkedLocalPrescription, setCheckedLocalPrescription] = useState(Boolean(idParam));
 
   // If no ID is specified, check localStorage for preview fallback
   useEffect(() => {
     if (!idParam) {
+      setCheckedLocalPrescription(false);
       const fetchLocalAndProfile = async () => {
         try {
           const stored = localStorage.getItem("prescriptionData");
-          if (!stored) return;
+          if (!stored) {
+            setLocalPrescription(null);
+            return;
+          }
           const patientData = JSON.parse(stored);
           
           // Start with mapping patient data
           const mapped = convertPatientDataToPrescription(patientData);
+          setLocalPrescription({ ...mapped });
           
           // Try to fetch logged-in doctor details
           try {
@@ -91,10 +97,15 @@ function PrescriptionContent() {
           setLocalPrescription(mapped);
         } catch (e) {
           console.error("Failed to parse local prescription fallback:", e);
+          setLocalPrescription(null);
+        } finally {
+          setCheckedLocalPrescription(true);
         }
       };
       
       fetchLocalAndProfile();
+    } else {
+      setCheckedLocalPrescription(true);
     }
   }, [idParam]);
 
@@ -141,6 +152,14 @@ function PrescriptionContent() {
   // Fallback to local storage (for unsaved patient form prints)
   if (localPrescription) {
     return <PrescriptionView prescription={localPrescription} />;
+  }
+
+  if (!checkedLocalPrescription) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600" />
+      </div>
+    );
   }
 
   return (

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -9,7 +9,6 @@ import {
   Stethoscope,
   Plus,
   Printer,
-  FileText,
   Sun,
   Moon,
   Palette,
@@ -38,6 +37,7 @@ interface ConsultationHeaderProps {
   theme: ConsultationTheme;
   onThemeChange: (theme: ConsultationTheme) => void;
   canPrint: boolean;
+  assistantNode?: ReactNode;
 }
 
 export function ConsultationHeader({
@@ -50,6 +50,7 @@ export function ConsultationHeader({
   theme,
   onThemeChange,
   canPrint,
+  assistantNode,
 }: ConsultationHeaderProps) {
   const [template, setTemplate] = useState<TemplateId>("EMR");
 
@@ -114,6 +115,12 @@ export function ConsultationHeader({
         </div>
 
         <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
+          {assistantNode && (
+            <div className="flex items-center border-r border-red-100 pr-2 sm:pr-3">
+              {assistantNode}
+            </div>
+          )}
+
           <div
             className="theme-switcher flex h-9 items-center gap-0.5 rounded-xl border border-red-100 bg-white p-1 shadow-sm"
             role="group"

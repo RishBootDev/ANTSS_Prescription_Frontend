@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useMemo, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { Mic, MicOff, X, Activity, ScanLine, ListTree, Hash } from "lucide-react"
 import AvatarSpline from "./AvatarSpline"
@@ -124,19 +124,18 @@ export default function FloatingAIAssistant({
 
   return (
     <>
-      {/* Collapsed State - Premium Floating Avatar Bubble */}
-      <div className="fixed bottom-6 right-6 z-50">
+      {/* Navbar State - compact static avatar button */}
+      <div className="relative print:hidden">
         <motion.button
           type="button"
           aria-label="Open AI assistant"
           onClick={() => setOpen(true)}
-          className="relative flex h-20 w-20 items-center justify-center rounded-full backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] overflow-hidden"
+          className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl backdrop-blur-xl shadow-sm transition hover:scale-105"
           style={{
             background: "linear-gradient(145deg, rgba(255,255,255,0.95), rgba(248,250,252,0.9))",
-            border: "1px solid rgba(255,255,255,0.8)",
+            border: "1px solid rgba(254,202,202,0.9)",
             boxShadow: getAvatarGlow(),
           }}
-          whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.96 }}
         >
           {/* Animated background gradient */}
@@ -180,8 +179,8 @@ export default function FloatingAIAssistant({
           )}
 
           {/* 3D Avatar - Main Focus */}
-          <div className="relative h-full w-full flex items-center justify-center p-2 pointer-events-none">
-            <div style={{ width: "84%", height: "84%", borderRadius: "50%", overflow: "hidden" }}>
+          <div className="relative h-full w-full flex items-center justify-center p-0.5 pointer-events-none">
+            <div style={{ width: "100%", height: "100%", borderRadius: "0.75rem", overflow: "hidden" }}>
               <AvatarSpline url="https://prod.spline.design/zESg9RgYAoqmVo4g/scene.splinecode" state={effectiveState} audioLevel={audioLevel} />
             </div>
           </div>
@@ -190,8 +189,8 @@ export default function FloatingAIAssistant({
           <motion.div
             className="absolute bottom-1 right-1 pointer-events-none"
             style={{
-              width: 12,
-              height: 12,
+              width: 8,
+              height: 8,
               borderRadius: "50%",
               background: getStatusColor(),
               border: "2px solid white",
@@ -226,8 +225,10 @@ export default function FloatingAIAssistant({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 30, scale: 0.95 }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              className="fixed bottom-6 right-6 z-50 flex flex-col pointer-events-none"
-              style={{ width: 420 }}
+              className="fixed right-4 top-[72px] z-50 flex flex-col pointer-events-none print:hidden"
+              style={{
+                width: "min(420px, calc(100vw - 24px))",
+              }}
             >
               <div
                 className="rounded-[2rem] backdrop-blur-2xl overflow-hidden shadow-[0_40px_160px_rgba(0,0,0,0.2)] flex flex-col pointer-events-auto border border-white/70"

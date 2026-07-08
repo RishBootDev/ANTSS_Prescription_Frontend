@@ -1,6 +1,11 @@
 "use client";
 
-import React, { JSX, ReactElement } from "react";
+import React, {
+  JSX,
+  ReactElement,
+  useEffect,
+  useRef,
+} from "react";
 import Link from "next/link";
 import {
   Card,
@@ -75,6 +80,24 @@ export default function MedicinesPage({
 }: Props) {
   const medicines = data.medicines || [];
 
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const pendingFocusNewMedicine = useRef(false);
+
+  useEffect(() => {
+    if (!pendingFocusNewMedicine.current) return;
+    if (medicines.length === 0) return;
+
+    pendingFocusNewMedicine.current = false;
+
+    const lastMedicine = medicines[medicines.length - 1];
+
+    requestAnimationFrame(() => {
+      const row = rowRefs.current[lastMedicine.id];
+      const firstInput = row?.querySelector("input") as HTMLInputElement | null;
+      firstInput?.focus();
+    });
+  }, [medicines]);
+
   const renderWithMic = (
     context: VoiceContext,
     element: ReactElement<{ className?: string }>
@@ -92,6 +115,20 @@ export default function MedicinesPage({
     updateMedicine(rowId, "strength", medicine.strength || "");
     updateMedicine(rowId, "dosage", medicine.dosage || "");
     updateMedicine(rowId, "instruction", medicine.instructions || "");
+  };
+
+  const handleQuantityKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    index: number
+  ) => {
+    if (e.key !== "Enter") return;
+
+    e.preventDefault();
+
+    if (index === medicines.length - 1) {
+      pendingFocusNewMedicine.current = true;
+      addMedicine();
+    }
   };
 
   const commonInputClass = (field: string) =>
@@ -175,6 +212,9 @@ export default function MedicinesPage({
             {medicines.map((m, index) => (
               <div
                 key={m.id}
+                ref={(el) => {
+                  rowRefs.current[m.id] = el;
+                }}
                 className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:border-indigo-200 hover:shadow-md"
               >
                 <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50/50 px-4 py-3">
@@ -338,6 +378,7 @@ export default function MedicinesPage({
                         onChange={(e) =>
                           updateMedicine(m.id, "quantity", e.target.value)
                         }
+                        onKeyDown={(e) => handleQuantityKeyDown(e, index)}
                         placeholder="10"
                         className={commonInputClass("medicines")}
                       />
@@ -351,16 +392,17 @@ export default function MedicinesPage({
                 </div>
               </div>
             ))}
-            <div className="sticky bottom-3 z-10 pt-1">
-  <Button
-    type="button"
-    onClick={addMedicine}
-    className="h-11 w-full rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-sm font-bold text-white shadow-lg hover:from-indigo-700 hover:to-blue-700"
-  >
-    <Plus className="mr-2 h-4 w-4" />
-    Add Another Medicine
-  </Button>
-</div>
+
+            {/* <div className="sticky bottom-3 z-10 pt-1">
+              <Button
+                type="button"
+                onClick={addMedicine}
+                className="h-11 w-full rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-sm font-bold text-white shadow-lg hover:from-indigo-700 hover:to-blue-700"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Another Medicine
+              </Button>
+            </div> */}
           </div>
         )}
       </CardContent>

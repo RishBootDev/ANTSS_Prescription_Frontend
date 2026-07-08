@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, JSX, ReactElement, useState } from "react";
+import { JSX, ReactElement, useEffect, useRef } from "react";
 import {
   Card,
   CardHeader,
@@ -11,17 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Activity,
-  FileText,
-  Loader2,
   Plus,
   Trash2,
-  Upload,
-  X,
   FlaskConical,
 } from "lucide-react";
 import { PatientData, TestRequestedEntry } from "../patient-form-fields/types";
 import { VoiceContext } from "@/hooks/useConsultationVoice";
-import { uploadPatientDocument } from "@/lib/services/documentService";
 
 type Props = {
   data: PatientData;
@@ -54,47 +49,38 @@ export default function TestRequestedPage({
   wrapWithMic = (_, el) => el,
   registerFieldRef,
 }: Props) {
-  const [uploadingTestId, setUploadingTestId] = useState<string | null>(null);
-
   const testsRequested = data.testsRequested || [];
 
-  const handleFileUpload = async (
-    id: string,
-    e: ChangeEvent<HTMLInputElement>
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const pendingFocusNewTest = useRef(false);
+
+  useEffect(() => {
+    if (!pendingFocusNewTest.current) return;
+    if (testsRequested.length === 0) return;
+
+    pendingFocusNewTest.current = false;
+
+    const lastTest = testsRequested[testsRequested.length - 1];
+
+    requestAnimationFrame(() => {
+      const row = rowRefs.current[lastTest.id];
+      const firstInput = row?.querySelector("input") as HTMLInputElement | null;
+      firstInput?.focus();
+    });
+  }, [testsRequested]);
+
+  const handleNotesKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    index: number
   ) => {
-    const file = e.target.files?.[0];
+    if (e.key !== "Enter") return;
 
-    if (!file) return;
+    e.preventDefault();
 
-    if (!data.patientId) {
-      alert("Please save the patient first before uploading test documents.");
-      e.target.value = "";
-      return;
+    if (index === testsRequested.length - 1) {
+      pendingFocusNewTest.current = true;
+      addTestRequested();
     }
-
-    setUploadingTestId(id);
-
-    try {
-      const result = await uploadPatientDocument(
-        data.patientId,
-        file,
-        "TEST_REQUESTED"
-      );
-
-      updateTestRequested(id, "documentUrl", result.url);
-      updateTestRequested(id, "documentFileName", result.fileName || file.name);
-    } catch (err: any) {
-      console.error("Test document upload failed:", err);
-      alert(err.message || "Failed to upload test document");
-    } finally {
-      setUploadingTestId(null);
-      e.target.value = "";
-    }
-  };
-
-  const handleRemoveFile = (id: string) => {
-    updateTestRequested(id, "documentUrl", "");
-    updateTestRequested(id, "documentFileName", "");
   };
 
   const inputStyle = (field: string) =>
@@ -123,7 +109,7 @@ export default function TestRequestedPage({
                     </span>
                   </div>
                   <p className="mt-0.5 text-[11px] font-medium normal-case tracking-normal text-slate-400">
-                    Requested tests, notes and document attachments
+                    Requested tests and notes
                   </p>
                 </div>
               </div>
@@ -154,24 +140,26 @@ export default function TestRequestedPage({
                 No tests requested
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Click Add to request lab tests or attach documents.
+                Click Add to request lab tests.
               </p>
             </div>
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="hidden grid-cols-[52px_1.3fr_1.3fr_130px_42px] gap-3 rounded-xl bg-slate-100 px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-500 lg:grid">
+            <div className="hidden grid-cols-[52px_1.4fr_1.4fr_42px] gap-3 rounded-xl bg-slate-100 px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-slate-500 lg:grid">
               <div>#</div>
               <div>Test Name</div>
               <div>Notes</div>
-              <div className="text-center">Attachment</div>
               <div />
             </div>
 
             {testsRequested.map((tr, index) => (
               <div
                 key={tr.id}
-                className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-teal-200 hover:shadow-md lg:grid-cols-[52px_1.3fr_1.3fr_130px_42px] lg:items-center"
+                ref={(el) => {
+                  rowRefs.current[tr.id] = el;
+                }}
+                className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-teal-200 hover:shadow-md lg:grid-cols-[52px_1.4fr_1.4fr_42px] lg:items-center"
               >
                 <div className="flex items-center gap-2">
                   <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-50 text-xs font-bold text-teal-600 ring-1 ring-teal-100">
@@ -187,6 +175,7 @@ export default function TestRequestedPage({
                   <label className="mb-1 block text-[11px] font-semibold uppercase text-slate-500 lg:hidden">
                     Test Name
                   </label>
+
                   {wrapWithMic(
                     {
                       mode: "FIELD",
@@ -210,6 +199,7 @@ export default function TestRequestedPage({
                   <label className="mb-1 block text-[11px] font-semibold uppercase text-slate-500 lg:hidden">
                     Notes
                   </label>
+
                   {wrapWithMic(
                     {
                       mode: "FIELD",
@@ -220,54 +210,13 @@ export default function TestRequestedPage({
                       onChange={(e) =>
                         updateTestRequested(tr.id, "notes", e.target.value)
                       }
+                      onKeyDown={(e) => handleNotesKeyDown(e, index)}
                       placeholder="e.g. fast for 12 hours"
                       className={inputStyle("testsRequested")}
                       ref={(el) =>
                         registerFieldRef?.(`testsRequested.${tr.id}.notes`, el)
                       }
                     />
-                  )}
-                </div>
-
-                <div className="flex items-center justify-start lg:justify-center">
-                  {uploadingTestId === tr.id ? (
-                    <div className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3 text-[11px] font-semibold text-teal-700">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Uploading
-                    </div>
-                  ) : tr.documentUrl ? (
-                    <div className="flex h-9 max-w-[130px] items-center gap-1 rounded-xl border border-teal-200 bg-teal-50 px-2 text-[11px] font-semibold text-teal-700">
-                      <FileText className="h-3.5 w-3.5 shrink-0" />
-
-                      <a
-                        href={tr.documentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="min-w-0 flex-1 truncate text-left hover:underline"
-                        title={tr.documentFileName || "Open document"}
-                      >
-                        {tr.documentFileName || "Document"}
-                      </a>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFile(tr.id)}
-                        className="shrink-0 rounded-md p-0.5 hover:bg-red-50 hover:text-red-500"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-xl border border-dashed border-teal-300 bg-white px-3 text-xs font-semibold text-teal-700 transition-colors hover:border-teal-400 hover:bg-teal-50">
-                      <Upload className="mr-1 h-3.5 w-3.5" />
-                      Upload
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*,.pdf"
-                        onChange={(e) => handleFileUpload(tr.id, e)}
-                      />
-                    </label>
                   )}
                 </div>
 

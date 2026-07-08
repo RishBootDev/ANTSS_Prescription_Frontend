@@ -150,6 +150,40 @@ const splitInvestigationNotes = (item: any) => {
   return { value, notes };
 };
 
+const splitTrailingNotes = (value: string) => {
+  const [main, ...notesParts] = value.split(" - ");
+  return {
+    main: main.trim(),
+    notes: notesParts.join(" - ").trim(),
+  };
+};
+
+const parseGeneralExaminationText = (value: string) => {
+  const { main, notes } = splitTrailingNotes(value);
+  const match = main.match(/^(.*?)\s*(?:\(([^()]*)\))?\s*(?:\[([^\[\]]*)\])?\s*$/);
+
+  return {
+    finding: (match?.[1] || main).trim(),
+    status: (match?.[2] || "").trim(),
+    severity: (match?.[3] || "").trim(),
+    notes,
+  };
+};
+
+const parsePastMedicalHistoryText = (value: string) => {
+  const { main, notes } = splitTrailingNotes(value);
+  const statusMatch = main.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+  const beforeStatus = (statusMatch?.[1] || main).trim();
+  const forMatch = beforeStatus.match(/^(.*?)\s+for\s+(.+)$/i);
+
+  return {
+    disease: (forMatch?.[1] || beforeStatus).trim(),
+    duration: (forMatch?.[2] || "").trim(),
+    status: (statusMatch?.[2] || "").trim(),
+    notes,
+  };
+};
+
 const getDocumentUrl = (item: any) =>
   item.documentUrl || item.url || item.fileUrl || item.reportUrl || item.attachmentUrl || null;
 
@@ -341,6 +375,19 @@ export default function ConsultationPage() {
       }
     }
 
+    const rawGeneralExaminations =
+      Array.isArray(c.generalExaminations) && c.generalExaminations.length
+        ? c.generalExaminations
+        : c.generalExamination
+          ? [c.generalExamination]
+          : [];
+    const rawPastMedicalHistories =
+      Array.isArray(c.pastMedicalHistories) && c.pastMedicalHistories.length
+        ? c.pastMedicalHistories
+        : c.medicalHistory
+          ? [{ medicalHistory: c.medicalHistory, allergies: c.allergies, currentMedicine: c.currentMedicine }]
+          : [];
+
     const mappedData: PatientData = {
       registrationId: c.registrationId || null,
       registrationNumber: c.registrationNumber || originalPatient?.registrationNumber || null,
@@ -365,32 +412,56 @@ export default function ConsultationPage() {
       chiefComplaint: null,
       symptoms: null,
       quickNotes: prescription.notes || null,
-      generalExaminations: (c.generalExaminations || []).map((ge: any, i: number) => {
+      generalExaminations: rawGeneralExaminations.map((ge: any, i: number) => {
         if (typeof ge === "string") {
+          const parsed = parseGeneralExaminationText(ge);
           return {
             id: `ge-${i}`,
-            finding: ge,
-            status: "",
-            severity: "",
-            notes: "",
+            finding: parsed.finding,
+            status: parsed.status,
+            severity: parsed.severity,
+            notes: parsed.notes,
           };
         }
 
+        const parsed =
+          !ge.finding && !ge.status && !ge.severity && typeof ge.generalExamination === "string"
+            ? parseGeneralExaminationText(ge.generalExamination)
+            : null;
+
         return {
           id: ge.id || `ge-${i}`,
-          finding: ge.finding || ge.examinationName || ge.name || "",
-          status: ge.status || "",
-          severity: ge.severity || "",
-          notes: ge.notes || "",
+          finding: ge.finding || ge.examinationName || ge.name || parsed?.finding || "",
+          status: ge.status || parsed?.status || "",
+          severity: ge.severity || parsed?.severity || "",
+          notes: ge.notes || parsed?.notes || "",
         };
       }),
-      pastMedicalHistories: (c.pastMedicalHistories || []).map((pmh: any, i: number) => ({
-        id: pmh.id || `pmh-${i}`,
-        disease: pmh.disease || pmh.medicalHistory || pmh.history || "",
-        duration: pmh.duration || "",
-        status: pmh.status || "",
-        notes: [pmh.allergies, pmh.currentMedicine, pmh.notes].filter(Boolean).join(" - "),
-      })),
+      pastMedicalHistories: rawPastMedicalHistories.map((pmh: any, i: number) => {
+        if (typeof pmh === "string") {
+          const parsed = parsePastMedicalHistoryText(pmh);
+          return {
+            id: `pmh-${i}`,
+            disease: parsed.disease,
+            duration: parsed.duration,
+            status: parsed.status,
+            notes: parsed.notes,
+          };
+        }
+
+        const parsed =
+          !pmh.disease && !pmh.duration && !pmh.status && typeof pmh.medicalHistory === "string"
+            ? parsePastMedicalHistoryText(pmh.medicalHistory)
+            : null;
+
+        return {
+          id: pmh.id || `pmh-${i}`,
+          disease: pmh.disease || pmh.history || parsed?.disease || pmh.medicalHistory || "",
+          duration: pmh.duration || parsed?.duration || "",
+          status: pmh.status || parsed?.status || "",
+          notes: [pmh.allergies, pmh.currentMedicine, pmh.notes || parsed?.notes].filter(Boolean).join(" - "),
+        };
+      }),
       advice: c.advice || null,
       testsRequested: (prescription.testRequested || prescription.diagnostics || []).map((tr: any, i: number) => ({
         id: `tr-${i}`,
@@ -582,6 +653,7 @@ export default function ConsultationPage() {
           let str = ge.finding || "";
           if (ge.status) str += ` (${ge.status})`;
           if (ge.severity) str += ` [${ge.severity}]`;
+          if (ge.notes) str += ` - ${ge.notes}`;
           return str;
         })
         .filter(Boolean)
@@ -857,30 +929,28 @@ export default function ConsultationPage() {
         theme={theme}
         onThemeChange={handleThemeChange}
         canPrint={canPrint}
+        assistantNode={
+          <FloatingAIAssistant
+            assistantStage={assistantState as any}
+            activeVoiceContext={activeVoiceContext}
+            extractedPreview={extractedPreview}
+            transcript={transcript}
+            error={error}
+            isSupported={isSupported}
+            isListening={isListening}
+            isProcessing={isLoading}
+            isSpeaking={isAvatarSpeaking}
+            onStartListening={startListening}
+            onStopListening={stopListening}
+          />
+        }
       />
 
       <main className="consultation-main mx-auto w-full max-w-none px-3 pb-16 sm:px-4 lg:px-6">
-        <FloatingAIAssistant
-          assistantStage={assistantState as any}
-          activeVoiceContext={activeVoiceContext}
-          extractedPreview={extractedPreview}
-          transcript={transcript}
-          error={error}
-          isSupported={isSupported}
-          isListening={isListening}
-          isProcessing={isLoading}
-          isSpeaking={isAvatarSpeaking}
-          onStartListening={startListening}
-          onStopListening={stopListening}
-        />
-
-
-
-        <section>
-          <div className={isReadOnly ? "pointer-events-none opacity-80" : ""}>
+        <section className={isReadOnly ? "opacity-80" : ""}>
             <PatientForm
               data={patientData}
-              onChange={handlePatientDataChange}
+              onChange={isReadOnly ? () => undefined : handlePatientDataChange}
               canPrint={canPrint}
               onPrintBlocked={handlePrintBlocked}
               highlightedFields={highlightedFields}
@@ -910,7 +980,6 @@ export default function ConsultationPage() {
               prescriptionHistoryLength={prescriptionHistory.length}
               visitHistory={prescriptionHistory}
             />
-          </div>
         </section>
       </main>
     </div>

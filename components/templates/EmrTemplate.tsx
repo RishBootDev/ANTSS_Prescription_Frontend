@@ -13,7 +13,6 @@ import {
   History,
   ListChecks,
   Pill,
-  Printer,
   Stethoscope,
   Syringe,
   TestTube2,
@@ -66,6 +65,16 @@ export default function EmrTemplate(props: BaseTemplateProps) {
     prescriptionId: number;
     createdAt?: string;
   } | null>(null);
+
+  const savedInvestigationCount = (data.investigations || []).filter((inv) =>
+    [inv.test, inv.value, inv.notes, inv.documentUrl, inv.documentFileName].some(
+      (value) => typeof value === "string" && value.trim() !== ""
+    )
+  ).length;
+
+  const savedDocumentCount = (data.documents || []).filter((doc) =>
+    [doc.fileName, doc.url].some((value) => typeof value === "string" && value.trim() !== "")
+  ).length;
 
   const formSections = [
     { id: "chief-complaints", label: "Chief Complaints", icon: ClipboardList },
@@ -319,7 +328,7 @@ export default function EmrTemplate(props: BaseTemplateProps) {
         </span>
 
         <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] font-bold text-cyan-700">
-          {data.investigations?.length ?? 0}
+          {savedInvestigationCount}
         </span>
       </div>
 
@@ -349,7 +358,7 @@ export default function EmrTemplate(props: BaseTemplateProps) {
         </span>
 
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-          {data.documents?.length ?? 0}
+          {savedDocumentCount}
         </span>
       </div>
 
@@ -533,21 +542,14 @@ export default function EmrTemplate(props: BaseTemplateProps) {
         </aside>
       </div>
 
-      <div className="consultation-footer fixed inset-x-0 bottom-0 z-40 flex h-12 items-center justify-end border-t border-slate-200 bg-white/95 px-4 shadow-[0_-4px_16px_rgba(15,23,42,0.05)] backdrop-blur print:hidden">
-        <button
-          id="print-prescription-action"
-          type="button"
-          onClick={helpers.handlePrintPrescription}
-          aria-disabled={props.canPrint === false}
-          title={props.canPrint === false ? "Save changes before printing" : "Print prescription"}
-          className={`flex h-8 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-semibold text-white shadow-sm hover:bg-primary/90 ${
-            props.canPrint === false ? "cursor-not-allowed opacity-55" : ""
-          }`}
-        >
-          <Printer className="h-3.5 w-3.5" />
-          Print Prescription
-        </button>
-      </div>
+      <button
+        id="print-prescription-action"
+        type="button"
+        onClick={helpers.handlePrintPrescription}
+        aria-hidden="true"
+        tabIndex={-1}
+        className="hidden"
+      />
 
       <Dialog
         open={selectedVisit !== null}

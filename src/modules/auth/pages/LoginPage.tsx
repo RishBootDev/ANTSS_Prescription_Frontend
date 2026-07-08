@@ -2,7 +2,6 @@ import { useEffect, useState, Suspense } from "react";
 import { motion } from "framer-motion";
 import React from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
@@ -165,7 +164,7 @@ function LoginContent() {
                 className="flex items-center gap-3"
               >
                 <div className="text-[46px] text-[#a50f0f]">⚕</div>
-                <h1 className="text-[54px] font-semibold tracking-[-2px] text-[#a50f0f]">ANTS</h1>
+                <h1 className="text-[54px] font-semibold tracking-[-2px] text-[#a50f0f]">ANTSS</h1>
               </motion.div>
 
               <h2 className="mt-6 text-center text-[34px] font-semibold leading-tight text-[#161616]">
@@ -182,25 +181,6 @@ function LoginContent() {
             <Card className="mt-10 rounded-[32px] border border-white/40 bg-white/80 p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)] backdrop-blur-xl">
               {view === "login" && (
                 <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-[54px] w-full rounded-xl border border-[#e5e5e5] bg-white text-[15px] font-medium text-[#333] transition-all duration-300 hover:scale-[1.01] hover:bg-[#fafafa]"
-                  >
-                    <img
-                      src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                      alt="google"
-                      className="mr-3 h-5 w-5"
-                    />
-                    Continue with Google
-                  </Button>
-
-                  <div className="my-7 flex items-center gap-4">
-                    <div className="h-px flex-1 bg-[#e4e4e4]" />
-                    <span className="text-[13px] text-[#888]">or Sign in with Email</span>
-                    <div className="h-px flex-1 bg-[#e4e4e4]" />
-                  </div>
-
                   <LoginForm onForgotPasswordClick={showForgotPassword} />
                 </>
               )}

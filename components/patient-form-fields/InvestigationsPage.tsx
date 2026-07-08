@@ -86,9 +86,19 @@ export default function InvestigationsPage({
     [data.investigations]
   );
 
+  const savedInvestigations = useMemo(
+    () =>
+      investigations.filter((inv) =>
+        [inv.test, inv.value, inv.notes, inv.documentUrl, inv.documentFileName].some(
+          (value) => typeof value === "string" && value.trim() !== ""
+        )
+      ),
+    [investigations]
+  );
+
   const selectedInvestigation =
-    investigations.find((inv) => inv.id === selectedInvestigationId) ||
-    investigations[0] ||
+    savedInvestigations.find((inv) => inv.id === selectedInvestigationId) ||
+    savedInvestigations[0] ||
     null;
 
   const isPreviewOpen = previewOpen ?? internalPreviewOpen;
@@ -102,7 +112,7 @@ export default function InvestigationsPage({
   };
 
   const openInvestigationPreview = (investigation?: InvestigationEntry) => {
-    setSelectedInvestigationId(investigation?.id || investigations[0]?.id || null);
+    setSelectedInvestigationId(investigation?.id || savedInvestigations[0]?.id || null);
     setPreviewOpen(true);
   };
 
@@ -198,7 +208,7 @@ export default function InvestigationsPage({
                 variant="outline"
                 className="h-8 rounded-xl border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 onClick={() => openInvestigationPreview()}
-                disabled={investigations.length === 0}
+                disabled={savedInvestigations.length === 0}
               >
                 <Eye className="mr-1 h-3.5 w-3.5" />
                 Preview
@@ -407,9 +417,9 @@ export default function InvestigationsPage({
             </DialogTitle>
 
             <DialogDescription className="text-xs">
-              {investigations.length > 0
-                ? `${investigations.length} investigation${
-                    investigations.length === 1 ? "" : "s"
+              {savedInvestigations.length > 0
+                ? `${savedInvestigations.length} investigation${
+                    savedInvestigations.length === 1 ? "" : "s"
                   } available`
                 : "No investigations available"}
             </DialogDescription>
@@ -419,7 +429,7 @@ export default function InvestigationsPage({
             <div className="grid min-h-0 flex-1 grid-cols-1 bg-slate-100 lg:grid-cols-[300px_minmax(0,1fr)]">
               <aside className="min-h-0 overflow-y-auto border-b border-slate-200 bg-white p-3 lg:border-b-0 lg:border-r">
                 <div className="space-y-2">
-                  {investigations.map((inv, index) => (
+                  {savedInvestigations.map((inv, index) => (
                     <button
                       key={inv.id}
                       type="button"
