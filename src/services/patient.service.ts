@@ -3,23 +3,23 @@ import { PatientRequest, PatientResponse, PatientRegistrationRequest, PatientReg
 
 export const patientService = {
   createPatient: (patientData: PatientRequest): Promise<PatientResponse> => {
-    return apiClient.post<PatientResponse>("/api/patients", patientData);
+    return apiClient.post<PatientResponse>("/api/patient-registrations", { patient: patientData });
   },
 
   getPatientById: (patientId: number): Promise<PatientResponse> => {
-    return apiClient.get<PatientResponse>(`/api/patients/${patientId}`);
+    return apiClient.get<PatientResponse>(`/api/patient-registrations/${patientId}`);
   },
 
   getAllPatients: (): Promise<PatientResponse[]> => {
-    return apiClient.get<PatientResponse[]>("/api/patients");
+    return apiClient.get<PatientResponse[]>("/api/patient-registrations");
   },
 
   updatePatient: (patientId: number, patientData: PatientRequest): Promise<PatientResponse> => {
-    return apiClient.put<PatientResponse>(`/api/patients/${patientId}`, patientData);
+    return apiClient.put<PatientResponse>(`/api/patient-registrations/${patientId}`, { patient: patientData });
   },
 
   deletePatient: (patientId: number): Promise<string> => {
-    return apiClient.delete<string>(`/api/patients/${patientId}`);
+    return apiClient.delete<string>(`/api/patient-registrations/${patientId}`);
   },
 
   createRegistration: (registrationData: Partial<PatientRegistrationRequest>): Promise<PatientRegistrationResponse> => {

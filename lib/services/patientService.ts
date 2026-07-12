@@ -6,9 +6,9 @@ export const PatientService = {
    * Create a new patient
    */
   createPatient: async (patientData: PatientRequest): Promise<PatientResponse> => {
-    return await apiRequest('/api/patients', {
+    return await apiRequest('/api/patient-registrations', {
       method: 'POST',
-      body: JSON.stringify(patientData),
+      body: JSON.stringify({ patient: patientData }),
     });
   },
 
@@ -16,7 +16,7 @@ export const PatientService = {
    * Get a patient by ID
    */
   getPatientById: async (patientId: number): Promise<PatientResponse> => {
-    return await apiRequest(`/api/patients/${patientId}`, {
+    return await apiRequest(`/api/patient-registrations/${patientId}`, {
       method: 'GET',
     });
   },
@@ -25,7 +25,7 @@ export const PatientService = {
    * Get all patients
    */
   getAllPatients: async (): Promise<PatientResponse[]> => {
-    return await apiRequest('/api/patients', {
+    return await apiRequest('/api/patient-registrations', {
       method: 'GET',
     });
   },
@@ -34,9 +34,9 @@ export const PatientService = {
    * Update an existing patient
    */
   updatePatient: async (patientId: number, patientData: PatientRequest): Promise<PatientResponse> => {
-    return await apiRequest(`/api/patients/${patientId}`, {
+    return await apiRequest(`/api/patient-registrations/${patientId}`, {
       method: 'PUT',
-      body: JSON.stringify(patientData),
+      body: JSON.stringify({ patient: patientData }),
     });
   },
 
@@ -44,7 +44,7 @@ export const PatientService = {
    * Delete a patient
    */
   deletePatient: async (patientId: number): Promise<string> => {
-    return await apiRequest(`/api/patients/${patientId}`, {
+    return await apiRequest(`/api/patient-registrations/${patientId}`, {
       method: 'DELETE',
     });
   },

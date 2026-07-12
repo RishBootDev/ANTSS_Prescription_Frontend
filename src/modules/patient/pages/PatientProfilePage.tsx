@@ -76,7 +76,7 @@ export default function PatientProfilePage() {
     const fetchPatientData = async () => {
       setLoading(true);
       try {
-        const patientData = await patientService.getPatientById(patientId) as any;
+        const patientData = await patientService.getRegistrationById(patientId) as any;
         setPatient(patientData);
 
         const detailedPrescriptions = await prescriptionService.getDetailedPrescriptionsByPatientId(patientId);
@@ -86,14 +86,14 @@ export default function PatientProfilePage() {
         setHistory(sortedHistory);
 
         const registrations = await patientService.getAllRegistrations();
-        const patientReg = registrations.find((reg: any) => reg.patient?.patientId === patientId) as any;
+        const patientReg = registrations.find((reg: any) => reg.registrationId === patientId) as any;
 
         if (patientReg) {
           setRegistration({
             registrationId: patientReg.registrationId,
             registrationNumber: patientReg.registrationNumber || "N/A",
             registrationDate: patientReg.createdAt ? new Date(patientReg.createdAt).toLocaleDateString() : "N/A",
-            clinicName: patientReg.clinic?.clinicName || "General Clinic",
+            clinicName: patientReg.clinicName || patientReg.hospitalName || "General Clinic",
             status: patientReg.status || "Active",
           });
         } else {
@@ -105,12 +105,13 @@ export default function PatientProfilePage() {
           });
         }
 
-        const allPatientsData = await patientService.getAllPatients();
+        const allPatientsData = await patientService.getAllRegistrations();
         const mappedPatients = allPatientsData.map((p: any) => {
-          const matchingReg = registrations.find((r: any) => r.patient?.patientId === p.patientId);
+          const matchingReg = registrations.find((r: any) => r.registrationId === p.registrationId);
           return {
             ...p,
-            registrationNumber: matchingReg?.registrationNumber || `REG-${String(p.patientId).padStart(5, "0")}`,
+            patientId: p.patientId || p.registrationId,
+            registrationNumber: matchingReg?.registrationNumber || p.registrationNumber || `REG-${String(p.registrationId).padStart(5, "0")}`,
           };
         });
         setAllPatients(mappedPatients);
