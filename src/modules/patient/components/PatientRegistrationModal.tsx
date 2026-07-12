@@ -150,7 +150,7 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
     const timer = setTimeout(async () => {
       setIsPrefilling(true);
       try {
-        const patients = await patientService.getAllPatients();
+        const patients = await patientService.getAllRegistrations();
         const match = (Array.isArray(patients) ? patients : []).find((patient) => patient.mobileNumber === mobile);
         if (match) {
           prefillFromExistingPatient(match);
@@ -213,11 +213,7 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
       toast.error("Patient name must be 100 characters or less");
       return false;
     }
-    if (!registrationForm.contactNumber) {
-      toast.error("Mobile number is required");
-      return false;
-    }
-    if (!/^[6-9][0-9]{9}$/.test(registrationForm.contactNumber)) {
+    if (registrationForm.contactNumber && !/^[6-9][0-9]{9}$/.test(registrationForm.contactNumber)) {
       toast.error("Mobile number must be a valid 10-digit number starting with 6-9");
       return false;
     }
@@ -291,7 +287,7 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
         status: "REGISTERED",
         patient: {
           patientName: registrationForm.name!.trim(),
-          mobileNumber: registrationForm.contactNumber!,
+          mobileNumber: registrationForm.contactNumber || "",
           gender: registrationForm.gender!,
           age: registrationForm.age ?? 0,
           dateOfBirth: registrationForm.dateOfBirth || "",
@@ -307,7 +303,7 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
 
       const registrationResponse = await patientService.createRegistration(registrationPayload);
       const regObj = (registrationResponse as any)?.data ?? registrationResponse;
-      const patient = regObj.patient;
+      const patient = regObj;
 
       try {
         await prescriptionService.savePrescription({
@@ -325,7 +321,7 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
       }
 
       const currentPatient = {
-        id: String(patient.patientId),
+        id: String(patient.patientId || regObj.registrationId),
         registrationId: regObj.registrationId,
         registrationNumber: regObj.registrationNumber,
         name: patient.patientName,
@@ -349,7 +345,7 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
 
       const newPatient: PatientData = {
         ...registrationForm,
-        id: String(patient.patientId),
+        id: String(patient.patientId || regObj.registrationId),
         name: patient.patientName,
         age: patient.age,
         gender: patient.gender,
@@ -438,7 +434,7 @@ export default function PatientRegistrationModal({ onPatientRegistered }: Patien
                   maxLength={100}
                 />
               </Field>
-              <Field label="Mobile Number *">
+              <Field label="Mobile Number">
                 <Input
                   id="reg-contactNumber"
                   value={registrationForm.contactNumber ?? ""}

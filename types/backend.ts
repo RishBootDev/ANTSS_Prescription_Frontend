@@ -2,7 +2,7 @@
 
 export interface PatientRequest {
   patientName: string;
-  mobileNumber: string;
+  mobileNumber?: string;
   gender: string;
   dateOfBirth?: string;
   age?: number;
@@ -13,7 +13,6 @@ export interface PatientRequest {
 }
 
 export interface PatientRegistrationRequest {
-  patientId?: number;
   patient?: PatientRequest;
   clinicId?: number;
   hospitalId?: number;
@@ -107,7 +106,7 @@ export interface UpdatePrescriptionRequest extends Omit<SavePrescriptionRequest,
 export interface PatientResponse {
   patientId: number;
   patientName: string;
-  mobileNumber: string;
+  mobileNumber?: string;
   gender: string;
   dateOfBirth?: string;
   age: number;
@@ -123,7 +122,16 @@ export interface PatientResponse {
 export interface PatientRegistrationResponse {
   registrationId: number;
   registrationNumber: string;
-  patient: PatientResponse;
+  patientId: number;
+  patientName: string;
+  mobileNumber?: string;
+  gender: string;
+  dateOfBirth?: string;
+  age: number;
+  address?: string;
+  state?: string;
+  city?: string;
+  pincode?: string;
   clinicId?: number;
   clinicName?: string;
   hospitalId?: number;

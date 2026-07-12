@@ -32,9 +32,9 @@ export const usePatientStore = create<PatientState>((set) => ({
       const registrations = (registrationsResponse as any)?.data || registrationsResponse;
       
       const mappedPatients = Array.isArray(registrations) ? registrations.map((r: any) => {
-        const p = r.patient || {};
+        const p = r || {};
         return {
-          patientId: p.patientId,
+          patientId: p.patientId || r.registrationId,
           patientName: p.patientName,
           mobileNumber: p.mobileNumber,
           gender: p.gender,
@@ -91,7 +91,7 @@ export const usePatientStore = create<PatientState>((set) => ({
   registerPatient: async (data) => {
     set({ loading: true });
     try {
-      const newPatient = await patientService.createPatient(data);
+      const newPatient = await patientService.createRegistration(data);
       set((state) => ({
         patients: [...state.patients, newPatient],
         loading: false,
