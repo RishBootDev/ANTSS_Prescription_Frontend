@@ -422,6 +422,25 @@ function MedicineMasterForm({
           />
         </div>
 
+        <div className="space-y-1.5">
+          <Label>Status</Label>
+          <Select
+            value={form.active ? "active" : "inactive"}
+            onValueChange={(value) =>
+              updateField("active", value === "active")
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select medicine status" />
+            </SelectTrigger>
+
+            <SelectContent>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="space-y-1.5 sm:col-span-2">
           <Label>Instructions</Label>
           <Input
@@ -533,6 +552,26 @@ export default function MedicineMasterPage() {
   const openEditDialog = (medicine: MedicineMaster) => {
     setEditingMedicine(medicine);
     setDialogOpen(true);
+
+    const id = getMedicineId(medicine);
+    if (id === undefined || id === null || id === "") return;
+
+    medicineService
+      .getMedicineById(id)
+      .then((fullMedicine) => {
+        setEditingMedicine((current) =>
+          current && getMedicineId(current) === id
+            ? {
+                ...current,
+                ...fullMedicine,
+                dosage: fullMedicine.dosage || current.dosage || "",
+              }
+            : current
+        );
+      })
+      .catch(() => {
+        // The list data remains available if the detail request fails.
+      });
   };
 
   const openImportDialog = () => {

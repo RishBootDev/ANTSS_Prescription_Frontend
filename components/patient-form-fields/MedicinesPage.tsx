@@ -47,7 +47,7 @@ const getMedicineField = (
   if (field === "instruction")
     return medicine.instruction ?? legacyMedicine.instructions ?? "";
 
-  return medicine[field] ?? "";
+  return String(medicine[field] ?? "");
 };
 
 type Props = {
@@ -94,7 +94,13 @@ export default function MedicinesPage({
     requestAnimationFrame(() => {
       const row = rowRefs.current[lastMedicine.id];
       const firstInput = row?.querySelector("input") as HTMLInputElement | null;
-      firstInput?.focus();
+
+      row?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+
+      firstInput?.focus({ preventScroll: true });
     });
   }, [medicines]);
 
@@ -117,6 +123,11 @@ export default function MedicinesPage({
     updateMedicine(rowId, "instruction", medicine.instructions || "");
   };
 
+  const handleAddMedicine = () => {
+    pendingFocusNewMedicine.current = true;
+    addMedicine();
+  };
+
   const handleQuantityKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
     index: number
@@ -126,8 +137,7 @@ export default function MedicinesPage({
     e.preventDefault();
 
     if (index === medicines.length - 1) {
-      pendingFocusNewMedicine.current = true;
-      addMedicine();
+      handleAddMedicine();
     }
   };
 
@@ -181,7 +191,7 @@ export default function MedicinesPage({
             <Button
               type="button"
               size="sm"
-              onClick={addMedicine}
+              onClick={handleAddMedicine}
               className="h-8 rounded-xl bg-blue-600 px-3 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
             >
               <Plus className="mr-1 h-3.5 w-3.5" />
@@ -396,7 +406,7 @@ export default function MedicinesPage({
             {/* <div className="sticky bottom-3 z-10 pt-1">
               <Button
                 type="button"
-                onClick={addMedicine}
+                onClick={handleAddMedicine}
                 className="h-11 w-full rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-sm font-bold text-white shadow-lg hover:from-indigo-700 hover:to-blue-700"
               >
                 <Plus className="mr-2 h-4 w-4" />

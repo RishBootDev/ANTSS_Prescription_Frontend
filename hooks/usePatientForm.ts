@@ -97,7 +97,15 @@ export function usePatientForm(props: BaseTemplateProps) {
     updateField(
       "medicines",
       data.medicines.map((m) =>
-        m.id === id ? { ...m, [field]: value } : m
+        m.id === id
+          ? {
+              ...m,
+              [field]: value,
+              ...(field === "medicineName"
+                ? { medicineMasterId: undefined }
+                : {}),
+            }
+          : m
       )
     );
   };
@@ -109,6 +117,7 @@ export function usePatientForm(props: BaseTemplateProps) {
       m.id === id
         ? {
             ...m,
+            medicineMasterId: medicine.medicineId ?? medicine.id,
             medicineName: medicine.medicineName || "",
             strength: medicine.strength || "",
             dosage: medicine.dosage || "",

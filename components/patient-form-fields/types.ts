@@ -1,5 +1,6 @@
 export interface MedicineEntry {
   id: string
+  medicineMasterId?: number | string
   medicineName: string
   strength: string
   dosage: string

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 const FloatingAIAssistant = dynamic(() => import("@/components/FloatingAIAssistant"), { ssr: false });
 import { useAuthStore } from "@/src/store/authStore";
 import { prescriptionService } from "@/src/services/prescription.service";
+import { medicineService } from "@/src/services/medicine.service";
 import { useConsultationVoice } from "@/hooks/useConsultationVoice";
 import { getPrescriptionDocuments } from "@/lib/services/documentService";
 
@@ -810,6 +811,11 @@ export default function ConsultationPage() {
           };
         });
 
+      const manualMedicines = (patientData.medicines || []).filter(
+        (medicine) =>
+          medicine.medicineName?.trim() && !medicine.medicineMasterId
+      );
+
       // Advice & Notes length (max 2000)
       if (patientData.advice && patientData.advice.length > 2000) {
         throw new Error("Advice text exceeds 2000 characters.");
@@ -893,6 +899,28 @@ export default function ConsultationPage() {
           prescriptionId: savedPrescriptionId,
         } as PatientData & { prescriptionId: number }));
       }
+
+      await Promise.allSettled(
+        manualMedicines.map(async (medicine) => {
+          const medicineName = medicine.medicineName.trim();
+          const matches = await medicineService.searchMedicines(medicineName);
+          const alreadyExists = matches.some(
+            (match) =>
+              match.medicineName?.trim().toLocaleLowerCase() ===
+              medicineName.toLocaleLowerCase()
+          );
+
+          if (alreadyExists) return;
+
+          await medicineService.createMedicine({
+            medicineName,
+            strength: medicine.strength?.trim() || "",
+            dosage: medicine.dosage?.trim() || "",
+            instructions: medicine.instruction?.trim() || "",
+            active: true,
+          });
+        })
+      );
 
       if (originalPatient) {
         const updatedPatient = {

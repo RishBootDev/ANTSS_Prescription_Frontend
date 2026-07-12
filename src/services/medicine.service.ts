@@ -8,6 +8,7 @@ export type MedicineMaster = {
   strength?: string;
   dosageForm?: string;
   dosage?: string;
+  dose?: string;
   instructions?: string;
   manufacturer?: string;
   active?: boolean;
@@ -27,12 +28,18 @@ export type MedicineMasterPayload = {
   active?: boolean;
 };
 
+const normalizeMedicineFields = (medicine: any): MedicineMaster => ({
+  ...medicine,
+  dosage: medicine?.dosage ?? medicine?.dose ?? "",
+});
+
 const normalizeList = (response: any): MedicineMaster[] => {
   const data = response?.data ?? response;
 
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.content)) return data.content;
+  if (Array.isArray(data)) return data.map(normalizeMedicineFields);
+  if (Array.isArray(data?.data)) return data.data.map(normalizeMedicineFields);
+  if (Array.isArray(data?.content))
+    return data.content.map(normalizeMedicineFields);
 
   return [];
 };
@@ -40,9 +47,10 @@ const normalizeList = (response: any): MedicineMaster[] => {
 const normalizeMedicine = (response: any): MedicineMaster => {
   const data = response?.data ?? response;
 
-  if (data?.data && !Array.isArray(data.data)) return data.data;
+  if (data?.data && !Array.isArray(data.data))
+    return normalizeMedicineFields(data.data);
 
-  return data;
+  return normalizeMedicineFields(data);
 };
 
 const withParams = (params?: Record<string, any>) => ({
@@ -71,6 +79,14 @@ export const medicineService = {
     medicine: MedicineMasterPayload,
     doctorUserId?: string
   ): Promise<MedicineMaster> => {
+    const id = medicine.medicineId ?? medicine.id;
+
+    if (id !== undefined && id !== null && id !== "") {
+      return apiClient
+        .put<any>(`/api/medicines/${id}`, medicine)
+        .then(normalizeMedicine);
+    }
+
     return apiClient
       .post<any>("/api/medicines", medicine)
       .then(normalizeMedicine);

@@ -56,6 +56,8 @@ export default function MedicineAutocomplete({
   const [results, setResults] = useState<MedicineMaster[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [selectedMedicine, setSelectedMedicine] =
+    useState<MedicineMaster | null>(null);
 
   const inputValue = value ?? "";
   const keyword = inputValue.trim();
@@ -88,6 +90,15 @@ export default function MedicineAutocomplete({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (
+      selectedMedicine &&
+      inputValue !== (selectedMedicine.medicineName || "")
+    ) {
+      setSelectedMedicine(null);
+    }
+  }, [inputValue, selectedMedicine]);
 
   useEffect(() => {
     if (!open || keyword.length < 2) {
@@ -164,6 +175,7 @@ export default function MedicineAutocomplete({
   }, []);
 
   const selectMedicine = (medicine: MedicineMaster) => {
+    setSelectedMedicine(medicine);
     onChange(medicine.medicineName || "");
     onSelectMedicine(medicine);
     setOpen(false);
@@ -171,6 +183,7 @@ export default function MedicineAutocomplete({
   };
 
   const handleCreated = async (medicine: MedicineMaster) => {
+    setSelectedMedicine(medicine);
     onChange(medicine.medicineName || keyword);
     onSelectMedicine(medicine);
 
@@ -242,6 +255,7 @@ export default function MedicineAutocomplete({
         <Input
           value={inputValue}
           onChange={(event) => {
+            setSelectedMedicine(null);
             onChange(event.target.value);
             setOpen(true);
             window.requestAnimationFrame(updateDropdownPosition);
@@ -252,12 +266,45 @@ export default function MedicineAutocomplete({
           }}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className={cn("h-8 pl-8 pr-9 text-sm", className)}
+          className={cn(
+            "h-8 pl-8 pr-9 text-sm",
+            className,
+            selectedMedicine?.genericName &&
+              "text-transparent caret-foreground selection:bg-blue-200"
+          )}
+          style={
+            selectedMedicine?.genericName
+              ? {
+                  color: "transparent",
+                  WebkitTextFillColor: "transparent",
+                  caretColor: "#0f172a",
+                }
+              : undefined
+          }
           autoComplete="off"
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
         />
+
+        {selectedMedicine?.genericName ? (
+          <div className="pointer-events-none absolute inset-y-0 left-8 right-9 flex min-w-0 items-center overflow-hidden text-sm text-slate-900">
+            <span className="truncate">
+              <span
+                className="not-italic"
+                style={{
+                  fontFamily: "var(--font-roboto), Arial, sans-serif",
+                  fontWeight: 400,
+                }}
+              >
+                {selectedMedicine.medicineName}
+              </span>{" "}
+              <span className="text-xs italic text-slate-500">
+                ({selectedMedicine.genericName})
+              </span>
+            </span>
+          </div>
+        ) : null}
 
         {loading ? (
           <Loader2 className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
